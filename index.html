@@ -742,7 +742,7 @@
                     </div>
                     <div class="dashboard-card" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
                         <i class="dashboard-icon fas fa-band-aid"></i>
-                        <h4>Total Pasien Ht</h4>
+                        <h4>Total Pasien PRB</h4>
                         <p id="prb-count">0</p>
                     </div>
                     <div class="dashboard-card" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
@@ -1033,7 +1033,8 @@
             appContainer.classList.remove('hidden');
             submitButton.disabled = false;
             submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Simpan Data Kunjungan';
-            loadDataFromLocalStorage();
+            // PERBAIKAN: Memuat data dari Local Storage saat login
+            loadDataFromLocalStorage(); 
             // Pindah ke tab dashboard saat login
             activateSection('dashboard-section'); 
         } else {
@@ -1085,9 +1086,14 @@
     /** Memformat tanggal dari YYYY-MM-DD ke DD-MM-YYYY */
     function formatDate(dateString) {
         if (!dateString) return '-';
+        // PERBAIKAN: Menangani input Date object (timestamp)
+        if (dateString instanceof Date) {
+            dateString = dateString.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        }
+
         const parts = dateString.split('-');
         if (parts.length === 3) {
-            // Check if input is YYYY-MM-DD format (like Date().toLocaleDateString('en-CA'))
+            // Check if input is YYYY-MM-DD format 
             if (parts[0].length === 4) {
                 return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert to DD-MM-YYYY
             }
@@ -1098,71 +1104,62 @@
     }
 
     function isValidDate(dateString) {
-        const regex = /^\d{2}-\d{2}-\d{4}$/;
+        const regex = /^\d{2}-\d{2}-\d{4}$/; // DD-MM-YYYY
         if (!regex.test(dateString)) return false;
         const [day, month, year] = dateString.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
+        // Date constructor: month is 0-indexed
+        const date = new Date(year, month - 1, day); 
         return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
     }
     
-    // --- LOCAL STORAGE DATA MANAGEMENT ---
+    // --- LOCAL STORAGE DATA MANAGEMENT (API Fallback) ---
 
-    // --- API DATA MANAGEMENT (PHP Backend Simulation) ---
-
-/** Mengambil data dari API */
-async function loadDataFromAPI() {
-    // ... (Logika menampilkan loading overlay)
-
-    try {
-        const response = await fetch(API_URL, { method: 'GET' });
-        if (!response.ok) throw new Error('Gagal memuat data dari API.');
+    /** Mengganti fungsi API dengan fungsi Local Storage untuk memuat data */
+    function loadDataFromLocalStorage() {
+        setLoading(true);
+        try {
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+            allKunjunganData = data ? JSON.parse(data) : [];
+            
+            // Konversi string tanggal/timestamp dari Local Storage ke objek Date
+            allKunjunganData = allKunjunganData.map(k => ({
+                ...k,
+                // Pastikan k.createdAt dan k.updatedAt di-parse menjadi Date object
+                createdAt: new Date(k.createdAt), 
+                updatedAt: new Date(k.updatedAt || k.createdAt), // Tambahkan fallback untuk updatedAt
+            }));
+            
+            showStatusMessage('Data berhasil dimuat dari Local Storage.', 'success');
+        } catch (error) {
+            console.error("Error loading data from Local Storage:", error);
+            allKunjunganData = [];
+            showStatusMessage('Gagal memuat data dari Local Storage: ' + error.message, 'error');
+        } finally {
+            setLoading(false);
+        }
         
-        const data = await response.json();
-        allKunjunganData = Array.isArray(data) ? data : [];
-        
-        // ... (Logika konversi timestamp ke Date object)
-        
-    } catch (error) {
-        // ... (Logika error handling)
-    } finally {
-        // ... (Logika menyembunyikan loading overlay)
+        processDataForDisplay();
     }
-    
-    processDataForDisplay();
-}
 
-/** Menyimpan seluruh dataset ke API */
-async function saveDataToAPI() {
-    // ... (Logika menampilkan loading button)
-
-    try {
-        const dataToSave = allKunjunganData.map(k => ({
+    /** Mengganti fungsi API dengan fungsi Local Storage untuk menyimpan data */
+    function saveDataToLocalStorage() {
+        // Siapkan data untuk disimpan (konversi Date object ke string ISO)
+        const dataToStore = allKunjunganData.map(k => ({
             ...k,
-            // Konversi Date object ke timestamp (number) saat menyimpan
-            createdAt: k.createdAt instanceof Date ? k.createdAt.getTime() : k.createdAt,
-            updatedAt: k.updatedAt instanceof Date ? k.updatedAt.getTime() : k.updatedAt,
+            createdAt: k.createdAt.toISOString(), 
+            updatedAt: k.updatedAt.toISOString(),
         }));
-
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSave)
-        });
-
-        if (!response.ok) throw new Error('Gagal menyimpan data ke API.');
         
-        // ... (Logika sukses)
-
-    } catch (error) {
-        // ... (Logika error handling)
-        return false;
-    } finally {
-        // ... (Logika mereset button)
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToStore));
+            return true;
+        } catch (error) {
+            console.error("Error saving data to Local Storage:", error);
+            showStatusMessage('Gagal menyimpan data ke Local Storage: ' + error.message, 'error');
+            return false;
+        }
     }
-    return true;
-}
 
-// ... (dan fungsi deleteKunjungan/deletePasien)
 
     /** Memproses data untuk display dan dashboard */
     function processDataForDisplay() {
@@ -1170,17 +1167,17 @@ async function saveDataToAPI() {
 
         // Urutkan data berdasarkan waktu input (terbaru di atas)
         allKunjunganData.sort((a, b) => {
-            const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : a.createdAt || 0;
-            const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : b.createdAt || 0;
+            const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime() || 0;
+            const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime() || 0;
             return timeB - timeA;
         });
 
-        // Ambil data kunjungan terakhir per NIK/Pasien
+        // Ambil data kunjungan terakhir per NIK/Pasien (INI YANG MENGHINDARI DUPLIKASI DI DAFTAR PASIEN)
         allKunjunganData.forEach(data => {
             const nik = data.nik;
-            const timestamp = data.createdAt instanceof Date ? data.createdAt.getTime() : data.createdAt || 0;
+            const timestamp = data.createdAt instanceof Date ? data.createdAt.getTime() : new Date(data.createdAt).getTime() || 0;
 
-            if (!latestPasienData[nik] || timestamp > (latestPasienData[nik].createdAt instanceof Date ? latestPasienData[nik].createdAt.getTime() : latestPasienData[nik].createdAt || 0)) {
+            if (!latestPasienData[nik] || timestamp > (latestPasienData[nik].createdAt instanceof Date ? latestPasienData[nik].createdAt.getTime() : new Date(latestPasienData[nik].createdAt).getTime() || 0)) {
                 latestPasienData[nik] = data;
             }
         });
@@ -1232,15 +1229,17 @@ async function saveDataToAPI() {
 
         // 2. Hitung Rekapan Bulanan (dari semua kunjungan)
         allKunjunganData.forEach(k => {
-            if (k.createdAt instanceof Date) {
-                const year = k.createdAt.getFullYear();
-                const month = k.createdAt.getMonth(); // 0-11
+            const dateObject = k.createdAt instanceof Date ? k.createdAt : new Date(k.createdAt);
+            
+            if (dateObject.toString() !== 'Invalid Date') {
+                const year = dateObject.getFullYear();
+                const month = dateObject.getMonth(); // 0-11
                 
                 if (year === currentYear) {
                     if (monthlyRecap[month]) {
                         monthlyRecap[month].totalKunjungan++;
                         
-                        const prb = k.jenisPrb.toLowerCase();
+                        const prb = (k.jenisPrb || '').toLowerCase();
                         if (prb.includes('dm') || prb.includes('diabetes')) {
                             monthlyRecap[month].dmCount++;
                         } else if (prb.includes('ht') || prb.includes('hipertensi')) {
@@ -1299,7 +1298,6 @@ async function saveDataToAPI() {
     
     /** Mendapatkan data dari form */
     function getFormData() {
-        // ... (Fungsi tidak berubah)
         const data = {
             namaPasien: document.getElementById('namaPasien').value.trim(),
             nik: document.getElementById('nik').value.trim(),
@@ -1368,7 +1366,7 @@ async function saveDataToAPI() {
         }
 
         try {
-            if (currentEditingId) {
+           if (currentEditingId) {
                 // UPDATE Existing Document
                 const index = allKunjunganData.findIndex(k => k.id === currentEditingId);
                 if (index !== -1) {
@@ -1378,20 +1376,26 @@ async function saveDataToAPI() {
                         updatedAt: new Date(),
                     };
                     showStatusMessage('Data kunjungan berhasil diperbarui!', 'success');
+                    
+                    // Panggil fungsi Local Storage
+                    saveDataToLocalStorage(); 
                 }
-            } else {
+           } else {
                 // CREATE New Document
                 const newId = Date.now().toString(); 
-                allKunjunganData.push({
+                const newKunjungan = { // Simpan data baru ke variabel
                     id: newId,
                     ...data,
                     createdAt: new Date(),
                     updatedAt: new Date(),
-                });
+                };
+                allKunjunganData.push(newKunjungan);
                 showStatusMessage('Data kunjungan berhasil disimpan!', 'success');
-            }
+                
+                // Panggil fungsi Local Storage
+                saveDataToLocalStorage();
+           }
             
-            await saveDataToAPI
             processDataForDisplay(); 
             
             form.reset();
@@ -1410,7 +1414,8 @@ async function saveDataToAPI() {
     /** Menghapus dokumen kunjungan (visit) dari Local Storage */
     async function deleteKunjungan(id) {
         allKunjunganData = allKunjunganData.filter(k => k.id !== id);
-        await saveDataToAPI
+        // Panggil fungsi Local Storage
+        saveDataToLocalStorage();
         processDataForDisplay();
         showStatusMessage('Data kunjungan berhasil dihapus permanen.', 'success');
     }
@@ -1418,7 +1423,8 @@ async function saveDataToAPI() {
     /** Menghapus semua kunjungan dan pasien (by NIK) dari Local Storage (NEW) */
     async function deletePasien(nik) {
         allKunjunganData = allKunjunganData.filter(k => k.nik !== nik);
-        await saveDataToAPI
+        // Panggil fungsi Local Storage
+        saveDataToLocalStorage();
         processDataForDisplay();
         showStatusMessage(`Pasien dengan NIK ${nik} dan semua riwayatnya berhasil dihapus.`, 'success');
     }
@@ -1442,6 +1448,54 @@ async function saveDataToAPI() {
         } finally {
             currentDeletingTarget = { id: null, type: null };
             setLoading(false);
+        }
+    }
+
+    // --- NEW FEATURE: Autofill Pasien Berdasarkan NIK ---
+
+    function handleNikInput() {
+        const nikInput = document.getElementById('nik');
+        const nik = nikInput.value.trim();
+        
+        // Hanya proses jika NIK sudah memiliki panjang yang wajar (misalnya > 5 digit)
+        if (nik.length < 5) {
+            // Jika NIK dikosongkan, reset data identitas agar user mengisi baru
+            if (nik.length === 0) {
+                 document.getElementById('namaPasien').value = '';
+                 document.getElementById('nomorHp').value = '';
+                 document.getElementById('statusProlanis').value = 'Tidak Tahu';
+                 document.getElementById('jenisPrb').value = '';
+            }
+            return;
+        } 
+
+        // Cari data kunjungan terakhir berdasarkan NIK
+        const latestData = latestPasienData[nik];
+        
+        if (latestData) {
+            // Otomatis isi data identitas dan diagnosis pasien
+            document.getElementById('namaPasien').value = latestData.namaPasien;
+            document.getElementById('nomorHp').value = latestData.nomorHp;
+            document.getElementById('statusProlanis').value = latestData.statusProlanis;
+            document.getElementById('jenisPrb').value = latestData.jenisPrb;
+            
+            showStatusMessage(`Data pasien ${latestData.namaPasien} (NIK: ${nik}) ditemukan. Harap isi data pemeriksaan dan jadwal obat baru.`, 'info');
+            
+            // PENTING: Untuk input kunjungan baru, pastikan tidak ada ID editing aktif
+            // Ini akan memastikan data baru tersimpan sebagai kunjungan baru
+            currentEditingId = null;
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-notes-medical"></i> Input Data Kunjungan Pasien Prolanis`;
+            submitButton.textContent = 'Simpan Data Kunjungan';
+            cancelButton.classList.add('hidden');
+        } else {
+            // Jika NIK diisi dan tidak ditemukan, beri tahu user untuk mengisi semua
+            showStatusMessage('NIK belum terdaftar. Harap isi data pasien secara lengkap.', 'warning');
+            
+            // Clear identity fields if NIK changes and isn't found
+            document.getElementById('namaPasien').value = '';
+            document.getElementById('nomorHp').value = '';
+            document.getElementById('statusProlanis').value = 'Tidak Tahu';
+            document.getElementById('jenisPrb').value = '';
         }
     }
 
@@ -1484,8 +1538,8 @@ async function saveDataToAPI() {
         }
 
         filteredData.forEach((kunjungan, index) => {
-            const createdAtDate = kunjungan.createdAt instanceof Date ? kunjungan.createdAt : new Date(kunjungan.createdAt);
-            const formattedDate = formatDate(createdAtDate.toLocaleDateString('en-CA'));
+            // Gunakan formatDate yang sudah diperbaiki
+            const formattedDate = formatDate(kunjungan.createdAt); 
             
             // Logika Tombol WhatsApp
             let whatsappButton = '';
@@ -1596,8 +1650,8 @@ async function saveDataToAPI() {
 
             historyData.forEach(kunjungan => {
                 const row = rekapDetailBody.insertRow();
-                const createdAtDate = kunjungan.createdAt instanceof Date ? kunjungan.createdAt : new Date(kunjungan.createdAt);
-                const formattedDate = formatDate(createdAtDate.toLocaleDateString('en-CA'));
+                // Gunakan formatDate yang sudah diperbaiki
+                const formattedDate = formatDate(kunjungan.createdAt);
 
                 row.innerHTML = `
                     <td>${formattedDate}</td>
@@ -1709,74 +1763,55 @@ async function saveDataToAPI() {
         });
         document.querySelector(`.nav-link[data-section="${sectionId}"]`).classList.add('active');
         
-        // Refresh data tampilan jika masuk ke rekapan/daftar
+        // Memastikan data diperbarui saat pindah ke tab rekapan/daftar
         if (sectionId === 'rekapan-section') {
             renderRekapanTable(allKunjunganData);
-        } else if (sectionId === 'daftar-section') {
+        } else if (sectionId === 'daftar-pasien-section') {
             renderDaftarTable(Object.values(latestPasienData));
-        } else if (sectionId === 'dashboard-section') {
-            renderDashboard(); // Pastikan dashboard di-refresh
-        }
-    }
-
-    /** Handler untuk Theme Toggle */
-    function handleThemeToggle() {
-        document.body.classList.toggle('dark-mode');
-        if (document.body.classList.contains('dark-mode')) {
-            localStorage.setItem('theme', 'dark');
-        } else {
-            localStorage.setItem('theme', 'light');
         }
     }
     
-    /** Inisialisasi Event Listeners */
-    function initListeners() {
-        // Login Form
-        loginForm.addEventListener('submit', handleLogin);
-
-        // Navigasi
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (!isLoggedIn) { showStatusMessage('Silakan Login terlebih dahulu.', 'error'); return; }
-                activateSection(this.getAttribute('data-section'));
-            });
+    // --- EVENT LISTENERS & INITIALIZATION ---
+    
+    loginForm.addEventListener('submit', handleLogin);
+    form.addEventListener('submit', saveKunjungan);
+    cancelButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetForm();
+        activateSection('dashboard-section'); // Pindah ke dashboard setelah cancel
+    });
+    
+    // Listener untuk navigasi tab
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            activateSection(link.dataset.section);
         });
+    });
 
-        // Form Submission
-        form.addEventListener('submit', saveKunjungan);
-        cancelButton.addEventListener('click', resetForm);
-        
-        // Theme Toggle
-        document.getElementById('theme-toggle').addEventListener('change', handleThemeToggle);
-        
-        // Search/Filter
-        document.getElementById('search-button-rekapan').addEventListener('click', () => renderRekapanTable(allKunjunganData));
-        document.getElementById('search-input-rekapan').addEventListener('keyup', () => renderRekapanTable(allKunjunganData));
-        
-        document.getElementById('search-button-daftar').addEventListener('click', () => renderDaftarTable(Object.values(latestPasienData)));
-        document.getElementById('search-input-daftar').addEventListener('keyup', () => renderDaftarTable(Object.values(latestPasienData)));
-    }
+    // Listener BARU untuk autofill NIK
+    document.getElementById('nik').addEventListener('change', handleNikInput); 
     
-    /** Inisialisasi Aplikasi */
-    function initApp() {
-        // Cek dan terapkan preferensi tema
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
-            document.getElementById('theme-toggle').checked = true;
-        }
+    // Listener untuk pencarian
+    document.getElementById('search-input-rekapan').addEventListener('input', () => renderRekapanTable(allKunjunganData));
+    document.getElementById('search-input-daftar').addEventListener('input', () => renderDaftarTable(Object.values(latestPasienData)));
+    
+    // Event listener untuk filter rekap modal
+    document.getElementById('filterBulan').addEventListener('change', window.filterRekap);
+    
+    // Event listener untuk menutup modal
+    window.addEventListener('click', closeRekapModalOutside);
+    window.addEventListener('click', closeDeleteConfirmModalOutside);
+    
+    // Listener untuk tombol konfirmasi hapus
+    deleteConfirmBtn.addEventListener('click', window.handleDeleteConfirmed);
 
-        // Setup Event Listeners
-        initListeners();
-        
-        // Tentukan apakah aplikasi harus menampilkan login atau konten utama
-        renderAuthState();
-    }
 
-    // Mulai aplikasi setelah DOM dimuat
-    window.onload = initApp;
+    // Init
+    renderAuthState(); // Akan memanggil loadDataFromLocalStorage() jika login
+
+</script>
 
 </script>
 </body>
 </html>
-
