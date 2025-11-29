@@ -3,22 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prolanis App - Manajemen Kunjungan</title>
+    <title>Prolanis App - Manajemen Kunjungan Pasien PRB</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Tambahkan library untuk PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         /* =================================================================
-           BASE STYLES & VARIABLE THEME
-           ================================================================= */
+            BASE STYLES & VARIABLE THEME
+            ================================================================= */
         :root {
-            --primary-color: #3b82f6; /* Blue */
-            --secondary-color: #10b981; /* Green */
-            --danger-color: #ef4444; /* Red */
-            --whatsapp-color: #25d366; /* WhatsApp Green */
+            --primary-color: #3b82f6;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --whatsapp-color: #25d366;
             --text-color: #333;
             --bg-color: #f3f4f6;
             --bg-color-secondary: #ffffff;
             --border-color: #d1d5db;
+            --bg-color-secondary-rgb: 255, 255, 255;
+            --status-terkendali: #10b981;
+            --status-tidak-terkendali: #ef4444;
+            --status-info: #3b82f6;
+            --warning-color: #f59e0b;
         }
 
         body.dark-mode {
@@ -26,6 +34,7 @@
             --bg-color: #1f2937;
             --bg-color-secondary: #374151;
             --border-color: #4b5563;
+            --bg-color-secondary-rgb: 55, 65, 81;
         }
 
         body {
@@ -40,6 +49,7 @@
 
         /* UTILITY */
         .mr-2 { margin-right: 0.5rem; }
+        .mr-1 { margin-right: 0.25rem; }
         .mb-8 { margin-bottom: 2rem; }
         .mb-6 { margin-bottom: 1.5rem; }
         .mt-6 { margin-top: 1.5rem; }
@@ -56,10 +66,11 @@
         .flex-col { flex-direction: column; }
         .items-center { align-items: center; }
         .justify-end { justify-content: flex-end; }
+        .justify-center { justify-content: center; }
         .gap-4 { gap: 1rem; }
         .gap-3 { gap: 0.75rem; }
+        .gap-2 { gap: 0.5rem; }
 
-        /* BASE LAYOUT */
         #app-container {
             max-width: 1300px;
             margin: 0 auto;
@@ -103,6 +114,7 @@
         .navbar-links {
             display: flex;
             gap: 15px;
+            flex-wrap: wrap;
         }
 
         .nav-link {
@@ -139,16 +151,49 @@
             display: block;
         }
         
+        /* Perbaikan tampilan card */
         .card {
             padding: 25px;
             background-color: var(--bg-color-secondary);
             border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
             margin-top: 25px;
             border: 1px solid var(--border-color);
+            transition: box-shadow 0.3s ease;
         }
 
-        /* FORM STYLES */
+        .card:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title i {
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+
         fieldset {
             border: 1px solid var(--border-color);
             padding: 20px;
@@ -174,46 +219,73 @@
             gap: 20px;
         }
 
+        /* Perbaikan tampilan form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: var(--text-color);
+            font-size: 0.95rem;
         }
 
-        .form-group input, .form-group select {
+        .form-group input, .form-group select, .form-group textarea {
             width: 100%;
-            padding: 12px;
+            padding: 12px 15px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             box-sizing: border-box;
             background-color: var(--bg-color);
             color: var(--text-color);
-            transition: border-color 0.3s;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-size: 0.95rem;
         }
         
-        .form-group input:focus, .form-group select:focus {
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
         .form-group input:disabled {
             background-color: var(--border-color);
             cursor: not-allowed;
+            opacity: 0.7;
         }
 
-        /* BUTTONS */
+        .form-group input.error {
+            border-color: var(--danger-color);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.85rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        /* Perbaikan tampilan tombol */
         .btn-base {
-            padding: 10px 18px;
+            padding: 12px 20px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            transition: background-color 0.3s, opacity 0.3s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-base:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
         .btn-submit {
@@ -262,8 +334,21 @@
             background-color: var(--primary-color);
             color: white;
         }
+        .btn-detail:hover {
+            background-color: #2563eb;
+        }
+        .btn-aksi {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+        }
 
-        /* SEARCH/AUTOCOMPLETE */
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
         .search-results {
             position: absolute;
             top: 100%;
@@ -300,7 +385,7 @@
             color: #6b7280;
         }
 
-        /* DASHBOARD */
+        /* Perbaikan tampilan dashboard */
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -309,17 +394,48 @@
         }
 
         .dashboard-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            padding: 20px;
-            border-radius: 12px;
+            padding: 25px 15px;
+            border-radius: 15px;
             text-align: center;
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+            z-index: 1;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .dashboard-card-content {
+            position: relative;
+            z-index: 2;
         }
 
         .dashboard-card h4 {
             font-size: 1rem;
-            margin: 5px 0;
+            margin: 10px 0;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .dashboard-card p {
@@ -327,38 +443,59 @@
             font-weight: 700;
             margin: 0;
         }
-
+        
         .dashboard-icon {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .dashboard-card.detail {
+            background: linear-gradient(135deg, var(--status-terkendali), var(--status-info));
+        }
+
+        .dashboard-card.warning {
+            background: linear-gradient(135deg, var(--status-tidak-terkendali), var(--warning-color));
         }
         
-        /* TABLE STYLES */
         .table-responsive {
             overflow-x: auto;
         }
 
+        /* Perbaikan tampilan tabel */
         .data-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.95rem;
-        }
-
-        .data-table th, .data-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            text-align: left;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
         .data-table th {
-            background-color: var(--bg-color);
-            font-weight: 700;
-            color: var(--primary-color);
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
             text-transform: uppercase;
+            padding: 12px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background-color: rgba(var(--bg-color-secondary-rgb), 0.5);
         }
 
         .data-table tbody tr:hover {
-            background-color: var(--bg-color);
+            background-color: rgba(var(--primary-color), 0.1);
         }
         
         .data-table tbody tr:last-child td {
@@ -371,47 +508,144 @@
             flex-wrap: nowrap;
         }
 
-        .btn-aksi {
-            padding: 8px 10px;
+        /* Perbaikan tampilan badge status */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-size: 0.8rem;
+            font-weight: 600;
+            min-width: 100px;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        /* MODAL STYLES */
-        .modal-overlay {
+        .status-badge i {
+            margin-right: 5px;
+        }
+
+        .status-terkendali {
+            background-color: var(--status-terkendali);
+            color: white;
+        }
+
+        .status-tidak-terkendali {
+            background-color: var(--status-tidak-terkendali);
+            color: white;
+        }
+        
+        .status-na {
+            background-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        .status-sudah {
+            background-color: var(--status-info);
+            color: white;
+        }
+        .status-belum {
+            background-color: var(--warning-color);
+            color: #333;
+        }
+
+        /* Perbaikan tampilan modal */
+        .modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0, 0, 0, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            backdrop-filter: blur(3px);
         }
         
-        .modal {
-            /* Pastikan display:none di JS saat initialize */
-            display: none; 
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
         .modal-content {
             background-color: var(--bg-color-secondary);
             padding: 30px;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            max-width: 90%;
+            width: 600px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .modal-title i {
+            margin-right: 10px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+
+        .modal-close:hover {
+            background-color: var(--bg-color);
+        }
+
+        .modal-body {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        #riwayat-modal .modal-content {
+            max-width: 900px;
         }
 
         .modal-actions, .modal-confirm-actions {
@@ -420,19 +654,6 @@
             gap: 15px;
             margin-top: 20px;
             flex-wrap: wrap;
-        }
-        
-        .status-success {
-            background-color: #d1fae5; color: #065f46; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 600;
-        }
-        .status-error {
-            background-color: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 600;
-        }
-        .status-info {
-            background-color: #dbeafe; color: #1e40af; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 600;
-        }
-        .status-warning {
-            background-color: #fef08a; color: #a16207; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 600;
         }
         
         #status-message {
@@ -444,8 +665,19 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             animation: fadeIn 0.5s ease-out;
         }
+        .status-success {
+            background-color: #d1fae5; color: #065f46; padding: 10px; border-radius: 8px; margin-bottom: 0px; font-weight: 600;
+        }
+        .status-error {
+            background-color: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 0px; font-weight: 600;
+        }
+        .status-info {
+            background-color: #dbeafe; color: #1e40af; padding: 10px; border-radius: 8px; margin-bottom: 0px; font-weight: 600;
+        }
+        .status-warning {
+            background-color: #fef08a; color: #a16207; padding: 10px; border-radius: 8px; margin-bottom: 0px; font-weight: 600;
+        }
 
-        /* LOADING */
         #loading-overlay {
             position: fixed;
             top: 0;
@@ -488,6 +720,85 @@
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .progress-bar-container {
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 10px;
+            width: 100%;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%; 
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Theme Toggle */
+        .theme-switch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+
+        .slider {
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background-color: var(--border-color);
+            border-radius: 10px;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        .toggle-knob {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        @media (max-width: 900px) {
+            .navbar {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 15px;
+            }
+            .navbar-left {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                width: 100%;
+            }
+            .navbar-links {
+                flex-wrap: wrap;
+                margin-top: 10px;
+            }
+            .nav-link {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+            .flex.items-center.gap-4 {
+                margin-top: 15px;
+                justify-content: space-between;
+                width: 100%;
+            }
+            .dashboard-card p {
+                font-size: 2rem;
+            }
+            .dashboard-card {
+                padding: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -495,7 +806,7 @@
     <div id="app-container">
         
         <div class="top-bar-info">
-            <i class="fas fa-bullhorn mr-2"></i> Aplikasi Manajemen Prolanis - Data tersimpan **lokal di perangkat Anda** (Hanya di komputer Utama).
+            <i class="fas fa-bullhorn mr-2"></i> Aplikasi Manajemen Prolanis - Data tersimpan lokal di perangkat Anda. Jangan lupa backup berkala!
         </div>
 
         <div class="navbar">
@@ -504,29 +815,35 @@
                     <i class="fas fa-heartbeat"></i> Prolanis App
                 </h1>
                 <div class="navbar-links">
-                    <a href="#" class="nav-link" data-section="dashboard-section"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-                    <a href="#" class="nav-link active" data-section="input-form-area"><i class="fas fa-plus-circle"></i> Input Baru</a>
+                    <a href="#" class="nav-link" data-section="dashboard-section"><i class="fas fa-tachometer-alt mr-1"></i> Dashboard</a>
+                    <a href="#" class="nav-link active" data-section="input-form-area"><i class="fas fa-plus-circle mr-1"></i> Input Baru</a>
                     <a href="#" class="nav-link" data-section="rekapan-section">
-                        <i class="fas fa-chart-line"></i> Rekapan Kunjungan
+                        <i class="fas fa-chart-line mr-1"></i> Rekapan Kunjungan
                     </a>
                     <a href="#" class="nav-link" data-section="daftar-section">
-                        <i class="fas fa-user-friends"></i> Daftar Pasien
+                        <i class="fas fa-user-friends mr-1"></i> Daftar Pasien
+                    </a>
+                    <a href="#" class="nav-link" data-section="pasien-terlambat-section">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Pasien Terlambat
                     </a>
                 </div>
             </div>
             
             <div class="flex items-center gap-4">
-                <label class="theme-switch" title="Toggle Dark/Light Mode" style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-color);">
-                    <i class="fas fa-moon" id="light-icon"></i>
-                    <input type="checkbox" id="theme-toggle" style="display: none;">
-                    <span class="slider" style="display: inline-block; width: 40px; height: 20px; background-color: var(--border-color); border-radius: 10px; position: relative; transition: background-color 0.3s; cursor: pointer;">
-                        <span class="toggle-knob" id="theme-knob" style="content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background-color: white; border-radius: 50%; transition: transform 0.3s;"></span>
-                    </span>
-                    <i class="fas fa-sun" id="dark-icon"></i>
-                </label>
-                <button class="btn-base btn-cancel" onclick="handleLogout()">
-                    <i class="fas fa-sign-out-alt"></i> Logout
+                <button class="btn-base btn-riwayat" onclick="backupDataToFile()" title="Backup Data">
+                    <i class="fas fa-download mr-1"></i> Backup
                 </button>
+                <button class="btn-base btn-submit" onclick="restoreDataFromFile()" title="Restore Data">
+                    <i class="fas fa-upload mr-1"></i> Restore
+                </button>
+                <label class="theme-switch" title="Toggle Dark/Light Mode">
+                    <i class="fas fa-moon" id="dark-icon-label" style="opacity: 0.5;"></i>
+                    <input type="checkbox" id="theme-toggle" style="display: none;">
+                    <span class="slider">
+                        <span class="toggle-knob" id="theme-knob"></span>
+                    </span>
+                    <i class="fas fa-sun" id="light-icon-label" style="opacity: 1;"></i>
+                </label>
             </div>
         </div>
         
@@ -535,7 +852,7 @@
         <div id="loading-overlay">
             <div class="loading-box">
                 <div class="loader"></div>
-                <p class="font-semibold">Memuat Aplikasi...</p>
+                <p class="font-semibold" id="loading-text">Memuat Aplikasi...</p>
             </div>
         </div>
 
@@ -545,37 +862,19 @@
                 <h2 class="text-3xl font-bold mb-8" style="color: var(--text-color);"><i class="fas fa-tachometer-alt mr-2"></i> Dashboard</h2>
                 
                 <div class="dashboard-grid" id="summary-cards">
-                    <div class="dashboard-card" style="background: linear-gradient(145deg, #10b981, #059669);">
-                        <i class="dashboard-icon fas fa-users"></i>
-                        <h4>Total Pasien Terdaftar</h4>
-                        <p id="total-pasien-count">0</p>
-                    </div>
-                    <div class="dashboard-card" style="background: linear-gradient(145deg, #f59e0b, #d97706);">
-                        <i class="dashboard-icon fas fa-heart-circle-check"></i>
-                        <h4>Pasien Prolanis (Ya)</h4>
-                        <p id="prolanis-count">0</p>
-                    </div>
-                    <div class="dashboard-card" style="background: linear-gradient(145deg, #3b82f6, #2563eb);">
-                        <i class="dashboard-icon fas fa-band-aid"></i>
-                        <h4>Pasien PRB (Aktif)</h4>
-                        <p id="prb-count">0</p>
-                    </div>
-                    <div class="dashboard-card" style="background: linear-gradient(145deg, #ef4444, #dc2626);">
-                        <i class="dashboard-icon fas fa-diabetes"></i>
-                        <h4>Pasien DM</h4>
-                        <p id="dm-count">0</p>
-                    </div>
                 </div>
                 
                 <div class="card" id="rekap-kunjungan-card">
-                    <h3 class="text-xl font-bold mb-6" style="color: var(--text-color);"><i class="fas fa-calendar-alt mr-2"></i> Rekapan Kunjungan Bulanan (Tahun Ini)</h3>
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-calendar-alt mr-2"></i> Rekapan Kunjungan Bulanan (Tahun Ini)</h3>
+                    </div>
                     <div class="table-responsive">
                         <table class="data-table" id="monthly-recap-table">
                             <thead>
                                 <tr>
                                     <th>Bulan</th>
                                     <th>Jumlah Kunjungan</th>
-                                    <th>Progress Bar</th>
+                                    <th>Progress Bar (Target 10)</th>
                                 </tr>
                             </thead>
                             <tbody id="monthly-recap-body">
@@ -583,9 +882,12 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="flex justify-end mt-6">
-                        <button onclick="exportTableToCSV('monthly-recap-table', 'RekapKunjunganBulanan.csv')" class="btn-base btn-submit shadow-lg">
+                    <div class="card-actions justify-end mt-6">
+                        <button onclick="exportTableToCSV('monthly-recap-table', 'RekapKunjunganBulanan.csv')" class="btn-base btn-riwayat">
                             <i class="fas fa-file-excel mr-1"></i> Ekspor Rekapan
+                        </button>
+                        <button onclick="exportTableToPDF('monthly-recap-table', 'RekapKunjunganBulanan.pdf')" class="btn-base btn-delete">
+                            <i class="fas fa-file-pdf mr-1"></i> Cetak PDF
                         </button>
                     </div>
                 </div>
@@ -596,7 +898,7 @@
                 <h3 id="form-title" class="text-3xl font-bold mb-8" style="color: var(--text-color);"><i class="fas fa-notes-medical mr-2"></i> Input Data Kunjungan Pasien Prolanis</h3>
                 
                 <form id="pasien-input-form">
-                    <input type="hidden" id="pasienId" value=""> 
+                    <input type="hidden" id="pasienId" value="">	
                     
                     <fieldset id="identity-panel">
                         <legend><i class="fas fa-id-card-alt mr-2"></i> Data Identitas Pasien</legend>
@@ -606,16 +908,19 @@
                                 <label for="namaPasien">Nama Pasien</label>
                                 <input type="text" id="namaPasien" placeholder="Ketik nama pasien untuk mencari data lama..." required>
                                 <div id="search-results-nama" class="search-results"></div>
+                                <span class="error-message" id="error-namaPasien"></span>
                             </div>
                             <div class="form-group" style="position: relative;">
                                 <label for="nik">No. BPJS / NIK (ID Unik)</label>
                                 <input type="text" id="nik" placeholder="Ketik NIK/BPJS untuk mencari data lama..." required>
                                 <div id="search-results-nik" class="search-results"></div>
+                                <span class="error-message" id="error-nik"></span>
                             </div>
                             
                             <div class="form-group">
                                 <label for="nomorHp">Nomor HP (WA) - Cth: 62812xxxxxx</label>
                                 <input type="tel" id="nomorHp" placeholder="Diawali 62, hanya angka" required pattern="62\d{8,15}" title="Diawali 62, minimal 10 angka total">
+                                <span class="error-message" id="error-nomorHp"></span>
                             </div>
                             <div class="form-group">
                                 <label for="statusProlanis">Status Prolanis</label>
@@ -637,19 +942,23 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="tglKunjungan">Tanggal Kunjungan</label>
-                                <input type="date" id="tglKunjungan" value="<?php echo date('Y-m-d'); ?>" required>
+                                <input type="date" id="tglKunjungan" value="" required>
+                                <span class="error-message" id="error-tglKunjungan"></span>
                             </div>
                             <div class="form-group">
                                 <label for="tdSistole">TD Sistole (mmHg)</label>
-                                <input type="number" id="tdSistole" min="1" placeholder="Cth: 120" required>
+                                <input type="number" id="tdSistole" min="50" max="250" placeholder="Cth: 120" required>
+                                <span class="error-message" id="error-tdSistole"></span>
                             </div>
                             <div class="form-group">
                                 <label for="tdDiastole">TD Diastole (mmHg)</label>
-                                <input type="number" id="tdDiastole" min="1" placeholder="Cth: 80" required>
+                                <input type="number" id="tdDiastole" min="30" max="150" placeholder="Cth: 80" required>
+                                <span class="error-message" id="error-tdDiastole"></span>
                             </div>
                             <div class="form-group">
                                 <label for="gulaDarah">Gula Darah (mg/dL)</label>
                                 <input type="text" id="gulaDarah" placeholder="Cth: 145, atau '-' jika tidak ada" required>
+                                <span class="error-message" id="error-gulaDarah"></span>
                             </div>
                             <div class="form-group">
                                 <label for="kesadaran">Kesadaran</label>
@@ -662,108 +971,157 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="tglObatBerikutnya">Tanggal Obat Berikutnya (DD-MM-YYYY)</label>
-                                <input type="text" id="tglObatBerikutnya" 
-                                    placeholder="Contoh: 31-12-2024" 
-                                    pattern="\d{2}-\d{2}-\d{4}" 
-                                    title="Format harus DD-MM-YYYY (contoh: 01-01-2025)" 
-                                    required>
+                                <label for="tglObatBerikutnya">Tanggal Obat Berikutnya</label>
+                                <input type="date" id="tglObatBerikutnya" required>
+                                <span class="error-message" id="error-tglObatBerikutnya"></span>
                             </div>
                         </div>
                     </fieldset>
                     
                     
                     <div id="form-actions-container" class="flex flex-col">
-                        <div id="form-actions" class="flex gap-4 mt-6">
+                        <div id="form-actions" class="form-actions">
                             <button type="submit" class="btn-base btn-submit" id="submit-button">
                                 <i class="fas fa-paper-plane mr-2"></i> Simpan Kunjungan Baru
                             </button>
                             <button type="button" class="btn-base btn-cancel hidden" id="cancel-button" style="width: auto;">
                                 <i class="fas fa-times-circle mr-2"></i> Batalkan Edit
                             </button>
+                            <button type="button" class="btn-base btn-delete-pasien hidden" id="delete-patient-button" style="width: auto;">
+                                <i class="fas fa-trash-alt mr-2"></i> Hapus Pasien (Semua Riwayat)
+                            </button>
                         </div>
                         
-                        <p class="save-info-text">
-                            <i class="fas fa-save mr-1 text-blue-500"></i> Data ini akan **tersimpan di perangkat Anda** (melalui Local Storage).
+                        <p class="save-info-text mt-3" style="font-size: 0.9rem;">
+                            <i class="fas fa-save mr-1" style="color: var(--primary-color);"></i> Data ini akan tersimpan di perangkat Anda (melalui Local Storage).
                         </p>
                     </div>
                 </form>
             </section>
+            
             <section id="rekapan-section" class="content-section">
-                
-                <h2 id="rekapan-title" class="text-3xl font-bold mb-8" style="color: var(--text-color);"><i class="fas fa-clipboard-list mr-2"></i> Data Kunjungan Terbaru</h2>
-                
-                <div class="flex gap-3 mb-6">
-                    <input type="text" id="search-input-rekapan" placeholder="Cari Nama / NIK Pasien..." class="w-full form-group-input" style="padding:12px; border-radius:10px; border:1px solid var(--border-color);">
-                    <button id="search-button-rekapan" class="btn-base btn-submit px-4 w-auto"><i class="fas fa-search"></i> Cari</button>
+                <div class="card">
+                    <div class="card-header">
+                        <h2 id="rekapan-title" class="card-title"><i class="fas fa-clipboard-list mr-2"></i> Data Kunjungan Terbaru</h2>
+                        <div class="flex gap-3">
+                            <input type="text" id="search-input-rekapan" placeholder="Cari Nama / NIK Pasien..." class="form-group-input" style="padding:12px; border-radius:10px; border:1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color);">
+                            <button id="search-button-rekapan" class="btn-base btn-submit px-4 w-auto"><i class="fas fa-search"></i> Cari</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive p-0">
+                        <table class="data-table" id="rekapan-kunjungan-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Nama Pasien</th>
+                                    <th>No. BPJS / NIK</th>
+                                    <th>TD (mmHg)</th>
+                                    <th>Gula Darah</th>
+                                    <th>Tgl. Obat Berikutnya</th>
+                                    <th>Tgl. Kunjungan</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pasien-data-body-rekapan">
+                                <tr><td colspan="8" class="text-center">Belum ada data kunjungan.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="rekapan-pagination" class="flex justify-center gap-4 mt-6"></div>
                 </div>
-
-                <div class="table-responsive card p-0">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>No.</th>
-                                <th>Nama Pasien</th>
-                                <th>No. BPJS / NIK</th>
-                                <th>TD (mmHg)</th>
-                                <th>Gula Darah</th>
-                                <th>Tgl. Obat Berikutnya</th>
-                                <th>Tgl. Input</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pasien-data-body-rekapan">
-                            <tr><td colspan="8" class="text-center">Belum ada data kunjungan.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
             </section>
             
             <section id="daftar-section" class="content-section">
-                
-                <h2 class="text-3xl font-bold mb-8" style="color: var(--text-color);"><i class="fas fa-user-friends mr-2"></i> Daftar Seluruh Pasien Terdaftar</h2>
-
-                <div class="flex gap-3 mb-6">
-                    <input type="text" id="search-input-daftar-all" placeholder="Cari Nama / NIK Pasien..." class="w-full form-group-input" style="padding:12px; border-radius:10px; border:1px solid var(--border-color);">
-                    <button id="search-button-daftar-all" class="btn-base btn-submit px-4 w-auto"><i class="fas fa-search"></i> Cari</button>
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fas fa-user-friends mr-2"></i> Daftar Seluruh Pasien Terdaftar</h2>
+                        <div class="flex gap-3">
+                            <input type="text" id="search-input-daftar-all" placeholder="Cari Nama / NIK Pasien..." class="form-group-input" style="padding:12px; border-radius:10px; border:1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color);">
+                            <button id="search-button-daftar-all" class="btn-base btn-submit px-4 w-auto"><i class="fas fa-search"></i> Cari</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive p-0">
+                        <table class="data-table" id="daftar-pasien-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Nama Pasien</th>
+                                    <th>NIK</th>
+                                    <th>Status Prolanis/PRB</th>
+                                    <th>DM Terkendali</th>
+                                    <th>HT Terkendali</th>
+                                    <th>No. HP</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pasien-data-body-daftar">
+                                <tr><td colspan="8" class="text-center">Memuat data pasien...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="daftar-pagination" class="flex justify-center gap-4 mt-6"></div>
+                    <div class="card-actions justify-end mt-6">
+                        <button onclick="exportAllPatientsToCSV()" class="btn-base btn-riwayat">
+                            <i class="fas fa-file-csv mr-1"></i> Ekspor Daftar Pasien
+                        </button>
+                        <button onclick="exportTableToPDF('daftar-pasien-table', 'DaftarPasienProlanis.pdf')" class="btn-base btn-delete">
+                            <i class="fas fa-file-pdf mr-1"></i> Cetak Daftar PDF
+                        </button>
+                    </div>
                 </div>
+            </section>
 
-                <div class="table-responsive card p-0">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>No.</th>
-                                <th>Nama Pasien</th>
-                                <th>No. BPJS / NIK</th>
-                                <th>Status Prolanis</th>
-                                <th>Jenis PRB</th>
-                                <th>No. HP</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pasien-data-body-daftar">
-                            <tr><td colspan="7" class="text-center">Belum ada data pasien terdaftar.</td></tr>
-                        </tbody>
-                    </table>
+            <section id="pasien-terlambat-section" class="content-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i class="fas fa-exclamation-triangle mr-2"></i> Daftar Pasien Terlambat Ambil Obat</h2>
+                    </div>
+                    <div class="table-responsive p-0">
+                        <table class="data-table" id="pasien-terlambat-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Nama Pasien</th>
+                                    <th>NIK</th>
+                                    <th>Tgl. Obat Seharusnya</th>
+                                    <th>Status Hubungi</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pasien-terlambat-body">
+                                <tr><td colspan="6" class="text-center">Memuat data pasien terlambat...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-actions justify-end mt-6">
+                        <button onclick="exportTableToCSV('pasien-terlambat-table', 'DaftarPasienTerlambat.csv')" class="btn-base btn-riwayat">
+                            <i class="fas fa-file-csv mr-1"></i> Ekspor Daftar
+                        </button>
+                        <button onclick="exportTableToPDF('pasien-terlambat-table', 'DaftarPasienTerlambat.pdf')" class="btn-base btn-delete">
+                            <i class="fas fa-file-pdf mr-1"></i> Cetak Daftar PDF
+                        </button>
+                    </div>
                 </div>
-
             </section>
         </div>
         
     </div>
     
-    <div id="duplicate-patient-modal" class="modal-overlay" style="display:none;">
+    <div id="duplicate-patient-modal" class="modal" style="display:none;">
         <div class="modal-content">
-            <h3 class="text-xl font-bold mb-4" style="color: var(--primary-color);"><i class="fas fa-search mr-2"></i> Pasien Sudah Terdaftar!</h3>
-            <p>Terdapat Pasien dengan Nama/NIK yang cocok di database:</p>
-            <div style="padding: 10px; background: var(--bg-color); border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color); text-align: left; color: var(--text-color);">
-                <strong>Nama:</strong> <span id="modal-patient-name"></span><br>
-                <strong>NIK:</strong> <span id="modal-patient-nik"></span><br>
-                <small>ID Master: <span id="modal-patient-id-preview"></span></small>
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-search mr-2"></i> Pasien Sudah Terdaftar!</h3>
             </div>
-            <p class="font-semibold" style="margin-top: 15px;">Apakah Anda ingin membuat **RIWAYAT KUNJUNGAN BARU** untuk pasien ini?</p>
-            <div class="modal-actions">
+            <div class="modal-body">
+                <p>Terdapat Pasien dengan Nama/NIK yang cocok di database:</p>
+                <div style="padding: 10px; background: var(--bg-color); border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color); text-align: left; color: var(--text-color);">
+                    <strong>Nama:</strong> <span id="modal-patient-name"></span><br>
+                    <strong>NIK:</strong> <span id="modal-patient-nik"></span><br>
+                    <small>ID Master: <span id="modal-patient-id-preview"></span></small>
+                </div>
+                <p class="font-semibold" style="margin-top: 15px;">Apakah Anda ingin membuat RIWAYAT KUNJUNGAN BARU untuk pasien ini?</p>
+            </div>
+            <div class="modal-footer">
                 <button id="btn-lanjut-lama" class="btn-base btn-submit">
                     <i class="fas fa-check-circle mr-2"></i> Lanjutkan Kunjungan (Tambah Riwayat)
                 </button>
@@ -774,732 +1132,1724 @@
         </div>
     </div>
 
-    <div id="delete-pasien-modal" class="modal">
+    <div id="riwayat-modal" class="modal" style="display:none;">
         <div class="modal-content">
-            <h3 class="text-xl font-bold mb-4" style="color: var(--danger-color);"><i class="fas fa-exclamation-triangle mr-2"></i> Konfirmasi Hapus Pasien</h3>
-            <p>Anda yakin ingin **menghapus seluruh data pasien** ini? Tindakan ini tidak dapat dibatalkan.</p>
-            <div class="modal-confirm-actions">
-                <button class="btn-base btn-cancel" onclick="closeModal('delete-pasien-modal')"><i class="fas fa-times"></i> Batal</button>
-                <button class="btn-base btn-delete" id="confirm-delete-pasien-btn"><i class="fas fa-trash-alt mr-2"></i> Hapus Permanen</button>
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-history mr-2"></i> Riwayat Kunjungan: <span id="riwayat-nama-pasien"></span></h3>
+                <button class="modal-close" onclick="hideRiwayatModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-color);">NIK: <span id="riwayat-nik-pasien"></span></p>
+                <p style="color: var(--text-color);">Jenis PRB: <span id="riwayat-prb-pasien"></span> | HP: <span id="riwayat-hp-pasien"></span></p>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto; margin-top: 20px;">
+                    <table class="data-table" id="riwayat-kunjungan-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Tanggal Kunjungan</th>
+                                <th>TD (mmHg)</th>
+                                <th>Gula Darah</th>
+                                <th>Status (DM/HT)</th>
+                                <th>Tgl. Obat Berikutnya</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riwayat-kunjungan-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="export-riwayat-button" class="btn-base btn-riwayat">
+                    <i class="fas fa-file-csv mr-2"></i> Ekspor Riwayat
+                </button>
+                <button id="print-riwayat-button" class="btn-base btn-delete">
+                    <i class="fas fa-file-pdf mr-2"></i> Cetak Riwayat PDF
+                </button>
+                <button id="close-riwayat-modal" class="btn-base btn-cancel">
+                    <i class="fas fa-times-circle mr-2"></i> Tutup
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="delete-kunjungan-modal" class="modal">
+    <div id="confirm-modal" class="modal" style="display:none;">
         <div class="modal-content">
-            <h3 class="text-xl font-bold mb-4" style="color: var(--danger-color);"><i class="fas fa-exclamation-triangle mr-2"></i> Konfirmasi Hapus Kunjungan</h3>
-            <p>Anda yakin ingin **menghapus data kunjungan** ini? Tindakan ini tidak dapat dibatalkan.</p>
-            <div class="modal-confirm-actions">
-                <button class="btn-base btn-cancel" onclick="closeModal('delete-kunjungan-modal')"><i class="fas fa-times"></i> Batal</button>
-                <button class="btn-base btn-delete" id="confirm-delete-kunjungan-btn"><i class="fas fa-trash-alt mr-2"></i> Hapus Kunjungan</button>
+            <div class="modal-header">
+                <h3 class="modal-title" style="color: var(--danger-color);"><i class="fas fa-exclamation-triangle mr-2"></i> Konfirmasi Tindakan</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message" class="font-semibold"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-confirm-yes" class="btn-base btn-delete">
+                    <i class="fas fa-check mr-2"></i> Ya, Lanjutkan
+                </button>
+                <button id="btn-confirm-no" class="btn-base btn-cancel">
+                    <i class="fas fa-times mr-2"></i> Batalkan
+                </button>
             </div>
         </div>
     </div>
 
     <script>
         // =================================================================
-        // JAVASCRIPT CORE - APLIKASI PROLANIS (VERSI LENGKAP)
+        // GLOBAL & UTILITY FUNCTIONS
         // =================================================================
 
-        // --- A. Inisialisasi Data & Utilitas ---
-        const STORAGE_KEY_PASIEN = 'prolanis_data_pasien';
-        const STORAGE_KEY_KUNJUNGAN = 'prolanis_data_kunjungan';
-        let DB_PASIEN = loadData(STORAGE_KEY_PASIEN) || [];
-        let DB_KUNJUNGAN = loadData(STORAGE_KEY_KUNJUNGAN) || [];
-        let currentEditPasienId = null;
-        let currentEditKunjunganId = null;
+        const STORAGE_KEY = 'prolanisAppData';
+        const PAGINATION_LIMIT = 15;
+        let ALL_DATA = { pasien: [], kunjungan: [] };
+        let currentEditingKunjunganId = null;
+        let currentEditingPasienId = null;
+        let duplicatePasienData = null;
+        let duplicateKunjunganData = null;
+        let formChanged = false;
 
-        const sections = document.querySelectorAll('.content-section');
-        const navLinks = document.querySelectorAll('.nav-link');
-        const statusMessageEl = document.getElementById('status-message');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeKnob = document.getElementById('theme-knob');
-        
-        // Elemen Input
-        const namaInput = document.getElementById('namaPasien');
-        const nikInput = document.getElementById('nik');
-        const resultsNama = document.getElementById('search-results-nama');
-        const resultsNik = document.getElementById('search-results-nik');
-        
-        // --- Utilitas Local Storage ---
-        function loadData(key) {
-            try {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : null;
-            } catch (e) {
-                console.error("Error loading data from Local Storage:", e);
-                return null;
-            }
+        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                            "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        // Debounce helper untuk mencegah fungsi dipanggil terlalu sering
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), wait);
+            };
         }
 
-        function saveData() {
-            localStorage.setItem(STORAGE_KEY_PASIEN, JSON.stringify(DB_PASIEN));
-            localStorage.setItem(STORAGE_KEY_KUNJUNGAN, JSON.stringify(DB_KUNJUNGAN));
+        function showLoading(text = 'Memproses...') {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-overlay').style.display = 'flex';
         }
 
-        function generateUniqueId(prefix) {
-            return prefix + Date.now() + Math.random().toString(36).substring(2, 9).toUpperCase();
+        function hideLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
         }
 
-        // --- Utilitas UI ---
-        function showStatus(message, type = 'info') {
-            statusMessageEl.textContent = message;
-            statusMessageEl.className = `status-message status-${type}`;
-            statusMessageEl.style.display = 'block';
-            setTimeout(() => {
-                statusMessageEl.style.display = 'none';
-            }, 5000);
-        }
-
-        function showLoading(show = true) {
-            loadingOverlay.style.display = show ? 'flex' : 'none';
-        }
-        
-        window.openModal = function(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
-        }
-
-        window.closeModal = function(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-        
-        window.handleLogout = function() {
-             showStatus('Fitur logout akan menghapus sesi. Jika Anda ingin menghapus data, gunakan opsi di Daftar Pasien.', 'warning');
-        }
-
-        // --- B. Navigasi & Theme ---
-        function switchSection(sectionId) {
-            sections.forEach(section => section.classList.remove('active'));
-            navLinks.forEach(link => link.classList.remove('active'));
-
-            document.getElementById(sectionId).classList.add('active');
-            const activeLink = document.querySelector(`.nav-link[data-section="${sectionId}"]`);
-            if (activeLink) activeLink.classList.add('active');
+        function showStatusMessage(message, type = 'info') {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.className = '';
+            statusDiv.classList.add(`status-${type}`);
             
-            if (sectionId === 'dashboard-section') updateDashboard();
-            if (sectionId === 'rekapan-section') renderKunjunganTable();
-            if (sectionId === 'daftar-section') renderDaftarPasien();
+            statusDiv.innerHTML = `<i class="fas ${
+                type === 'success' ? 'fa-check-circle' : 
+                type === 'error' ? 'fa-times-circle' : 
+                type === 'info' ? 'fa-info-circle' : 
+                'fa-exclamation-triangle'
+            } mr-2"></i> ${message}`;
+            
+            statusDiv.style.display = 'block';
 
-            if (sectionId !== 'input-form-area') {
+            clearTimeout(statusDiv.timeoutId);
+            statusDiv.timeoutId = setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 4000);
+        }
+
+        function activateSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-section') === sectionId) {
+                    link.classList.add('active');
+                }
+            });
+            if (sectionId === 'input-form-area') {
                 resetForm();
             }
         }
 
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const sectionId = e.currentTarget.getAttribute('data-section');
-                switchSection(sectionId);
-            });
-        });
-
-        // Dark Mode Logic 
-        function applyTheme(isDark) {
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-                document.getElementById('theme-knob').style.transform = 'translateX(20px)';
-            } else {
-                document.body.classList.remove('dark-mode');
-                document.getElementById('theme-knob').style.transform = 'translateX(2px)';
+        function convertDateToDDMMYYYY(dateString) {
+            if (!dateString) return '-';
+            if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) return dateString;
+            const parts = dateString.split('-');
+            if (parts.length === 3 && parts[0].length === 4) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
             }
-            themeToggle.checked = isDark;
+            return dateString;
         }
 
-        themeToggle.addEventListener('change', () => {
-            applyTheme(themeToggle.checked);
-            localStorage.setItem('prolanis_dark_mode', themeToggle.checked);
-        });
-
-        const savedTheme = localStorage.getItem('prolanis_dark_mode');
-        if (savedTheme !== null) {
-            applyTheme(savedTheme === 'true');
-        } else {
-            applyTheme(false); 
+        function convertDateToYYYYMMDD(dateString) {
+            if (!dateString) return '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+            const parts = dateString.split('-');
+            if (parts.length === 3 && parts[0].length === 2) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateString;
         }
 
-        // --- C. Dashboard Logic ---
-        function updateDashboard() {
-            const totalPasien = DB_PASIEN.length;
-            const prolanisCount = DB_PASIEN.filter(p => p.statusProlanis === 'Ya').length;
-            const prbCount = DB_PASIEN.filter(p => p.jenisPrb && p.jenisPrb.trim() !== '').length;
-            const dmCount = DB_PASIEN.filter(p => p.jenisPrb && p.jenisPrb.toUpperCase().includes('DM')).length;
-
-            document.getElementById('total-pasien-count').textContent = totalPasien;
-            document.getElementById('prolanis-count').textContent = prolanisCount;
-            document.getElementById('prb-count').textContent = prbCount;
-            document.getElementById('dm-count').textContent = dmCount;
-            
-            renderMonthlyRecap();
+        function formatDateToID(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString + 'T12:00:00');
+            const day = date.getDate();
+            const month = monthNames[date.getMonth()];
+            const year = date.getFullYear();
+            return `${day} ${month} ${year}`;
         }
-        
-        function renderMonthlyRecap() {
-            const recapBody = document.getElementById('monthly-recap-body');
-            recapBody.innerHTML = '';
-            
-            const currentYear = new Date().getFullYear();
-            const monthlyData = {}; 
-            
-            DB_KUNJUNGAN.forEach(kunjungan => {
-                const tglInput = new Date(kunjungan.tglInput);
-                if (tglInput.getFullYear() === currentYear) {
-                    const month = String(tglInput.getMonth() + 1).padStart(2, '0');
-                    monthlyData[month] = (monthlyData[month] || 0) + 1;
+
+        function daysDifference(date1str, date2str) {
+            const parseDate = (dateStr) => {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    return new Date(parts[2], parts[1] - 1, parts[0]);
                 }
-            });
+                return new Date(dateStr);
+            };
+            const date1 = parseDate(date1str);
+            const date2 = parseDate(date2str);
+            if (isNaN(date1) || isNaN(date2)) return 0;
+            const diffTime = date2.getTime() - date1.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
 
-            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-            const maxVisits = Math.max(...Object.values(monthlyData), 1); 
+        // =================================================================
+        // KRITERIA KUSTOM PENGGUNA
+        // =================================================================
 
-            for (let i = 1; i <= 12; i++) {
-                const month = String(i).padStart(2, '0');
-                const visitCount = monthlyData[month] || 0;
-                const monthName = monthNames[i - 1];
-                const progressPercent = (visitCount / maxVisits) * 100;    
+        function isDmTerkendali(gulaDarah) {
+            if (gulaDarah === '-' || !gulaDarah) return false;
+            const gd = parseInt(gulaDarah);
+            return !isNaN(gd) && gd >= 81 && gd <= 125;
+        }
 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${monthName}</td>
-                    <td>${visitCount}</td>
-                    <td>
-                        <div style="background-color: var(--border-color); border-radius: 10px; overflow: hidden; height: 10px;">
-                            <div class="progress-bar-fill" style="width: ${progressPercent}%; height: 100%; background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); transition: width 0.5s ease;"></div>
-                        </div>
-                    </td>
-                `;
-                recapBody.appendChild(row);
+        function isHtTerkendali(sistole, diastole) {
+            const TDS = parseInt(sistole);
+            return !isNaN(TDS) && TDS >= 100 && TDS <= 130;
+        }
+
+        function getDmStatus(gulaDarah) {
+            if (gulaDarah === '-' || !gulaDarah) return 'N/A';
+            return isDmTerkendali(gulaDarah) ? 'Terkendali' : 'Tidak Terkendali';
+        }
+
+        function getHtStatus(sistole, diastole) {
+            if (!sistole || !diastole) return 'N/A';
+            return isHtTerkendali(sistole, diastole) ? 'Terkendali' : 'Tidak Terkendali';
+        }
+
+        // =================================================================
+        // VALIDATION FUNCTIONS
+        // =================================================================
+
+        function validateKunjunganData(data) {
+            const errors = [];
+            const sistole = parseInt(data.tdSistole);
+            if (isNaN(sistole) || sistole < 50 || sistole > 250) {
+                errors.push({ field: 'tdSistole', message: 'TD Sistole harus antara 50-250 mmHg' });
+            }
+            const diastole = parseInt(data.tdDiastole);
+            if (isNaN(diastole) || diastole < 30 || diastole > 150) {
+                errors.push({ field: 'tdDiastole', message: 'TD Diastole harus antara 30-150 mmHg' });
+            }
+            if (data.gulaDarah !== '-' && data.gulaDarah.trim() !== '') {
+                const gd = parseInt(data.gulaDarah);
+                if (isNaN(gd) || gd < 20 || gd > 600) {
+                    errors.push({ field: 'gulaDarah', message: 'Gula Darah harus antara 20-600 mg/dL atau "-"' });
+                }
+            }
+            const tglKunjungan = new Date(data.tglKunjungan + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (tglKunjungan > today) {
+                errors.push({ field: 'tglKunjungan', message: 'Tanggal kunjungan tidak boleh di masa depan' });
+            }
+            return errors;
+        }
+
+        function showFieldError(fieldId, message) {
+            const field = document.getElementById(fieldId);
+            const errorSpan = document.getElementById(`error-${fieldId}`);
+            if (field && errorSpan) {
+                field.classList.add('error');
+                errorSpan.textContent = message;
+                errorSpan.style.display = 'block';
             }
         }
 
-        // --- D. Form Input/Edit Logic & Duplikasi Riwayat ---
+        function clearFieldError(fieldId) {
+            const field = document.getElementById(fieldId);
+            const errorSpan = document.getElementById(`error-${fieldId}`);
+            if (field && errorSpan) {
+                field.classList.remove('error');
+                errorSpan.style.display = 'none';
+            }
+        }
+
+        function clearAllErrors() {
+            ['namaPasien', 'nik', 'nomorHp', 'tglKunjungan', 'tdSistole', 'tdDiastole', 'gulaDarah', 'tglObatBerikutnya'].forEach(clearFieldError);
+        }
+
+        // =================================================================
+        // BACKUP & RESTORE FUNCTIONS
+        // =================================================================
+
+        function backupDataToFile() {
+            try {
+                const dataStr = JSON.stringify(ALL_DATA, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                const date = new Date().toISOString().split('T')[0];
+                link.download = `ProlanisBackup_${date}.json`;
+                link.click();
+                showStatusMessage('Backup berhasil dibuat!', 'success');
+            } catch (error) {
+                showStatusMessage('Gagal membuat backup: ' + error.message, 'error');
+            }
+        }
+
+        function restoreDataFromFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        showLoading('Memulihkan data backup...');
+                        const data = JSON.parse(event.target.result);
+                        if (!data.pasien || !data.kunjungan) {
+                            throw new Error('Format file backup tidak valid');
+                        }
+                        ALL_DATA = data;
+                        saveData();
+                        loadAllDataViews();
+                        hideLoading();
+                        showStatusMessage(`Data berhasil dipulihkan! (${data.pasien.length} pasien, ${data.kunjungan.length} kunjungan)`, 'success');
+                    } catch (error) {
+                        hideLoading();
+                        showStatusMessage('File backup tidak valid: ' + error.message, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // =================================================================
+        // DATA MANAGEMENT (LOCAL STORAGE)
+        // =================================================================
+
+        function loadData() {
+            try {
+                const storedData = localStorage.getItem(STORAGE_KEY);
+                if (storedData) {
+                    ALL_DATA = JSON.parse(storedData);
+                } else {
+                    ALL_DATA = { pasien: [], kunjungan: [] };
+                }
+                // Tambahkan ini untuk memastikan data lama kompatibel
+                ALL_DATA.pasien.forEach(pasien => {
+                    if (pasien.sudahDihubungi === undefined) {
+                        pasien.sudahDihubungi = false;
+                    }
+                });
+            } catch (e) {
+                console.error("Gagal memuat data dari Local Storage:", e);
+                showStatusMessage('Gagal memuat data dari penyimpanan lokal.', 'error');
+                ALL_DATA = { pasien: [], kunjungan: [] };
+            }
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(ALL_DATA));
+            } catch (e) {
+                console.error("Gagal menyimpan data ke Local Storage:", e);
+                showStatusMessage('Gagal menyimpan data ke penyimpanan lokal. Penyimpanan mungkin penuh.', 'error');
+            }
+        }
+
+        function generateUniqueId() {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+
+        function getPasienById(id) {
+            return ALL_DATA.pasien.find(p => p.id === id);
+        }
+
+        function getLastKunjungan(pasienId) {
+            const sortedKunjungan = ALL_DATA.kunjungan
+                .filter(k => k.pasienId === pasienId)
+                .sort((a, b) => new Date(b.tglKunjungan) - new Date(a.tglKunjungan));
+            return sortedKunjungan[0];
+        }
+
+        function getKunjunganById(kunjunganId) {
+            return ALL_DATA.kunjungan.find(k => k.id === kunjunganId);
+        }
+
+        function deletePasienAndRiwayat(pasienId) {
+            showLoading('Menghapus data pasien...');
+            const initialPasienCount = ALL_DATA.pasien.length;
+            ALL_DATA.pasien = ALL_DATA.pasien.filter(p => p.id !== pasienId);
+            const deletedPasienCount = initialPasienCount - ALL_DATA.pasien.length;
+            
+            const initialKunjunganCount = ALL_DATA.kunjungan.length;
+            ALL_DATA.kunjungan = ALL_DATA.kunjungan.filter(k => k.pasienId !== pasienId);
+            const deletedKunjunganCount = initialKunjunganCount - ALL_DATA.kunjungan.length;
+
+            saveData();
+            hideLoading();
+            showStatusMessage(`Pasien dan ${deletedKunjunganCount} riwayat kunjungannya berhasil dihapus.`, 'success');
+            
+            loadAllDataViews();
+            resetForm();
+            activateSection('daftar-section');
+        }
+
+        function deleteKunjungan(kunjunganId) {
+            showLoading('Menghapus kunjungan...');
+            const index = ALL_DATA.kunjungan.findIndex(k => k.id === kunjunganId);
+            if (index !== -1) {
+                ALL_DATA.kunjungan.splice(index, 1);
+                saveData();
+                showStatusMessage('Satu riwayat kunjungan berhasil dihapus.', 'success');
+            }
+            hideLoading();
+            loadAllDataViews();
+        }
+
+        // =================================================================
+        // AUTOCOMPLETE & SEARCH (FORM)
+        // =================================================================
+
+        function fillFormWithPasienData(pasienId) {
+            const pasien = getPasienById(pasienId);
+            if (!pasien) return;
+
+            document.getElementById('pasienId').value = pasien.id;
+            currentEditingPasienId = pasien.id;
+
+            document.getElementById('namaPasien').value = pasien.namaPasien;
+            document.getElementById('nik').value = pasien.nik;
+            document.getElementById('nomorHp').value = pasien.nomorHp;
+            document.getElementById('statusProlanis').value = pasien.statusProlanis;
+            document.getElementById('jenisPrb').value = pasien.jenisPrb;
+
+            const infoDiv = document.getElementById('patient-status-info');
+            infoDiv.style.display = 'block';
+            
+            const lastKunjungan = getLastKunjungan(pasien.id);
+            let infoText = `Data lama ditemukan! Pasien ini terakhir berkunjung pada: `;
+
+            if (lastKunjungan) {
+                const dmStatus = getDmStatus(lastKunjungan.gulaDarah);
+                const htStatus = getHtStatus(lastKunjungan.tdSistole, lastKunjungan.tdDiastole);
+                const tglKunjunganFormatted = formatDateToID(lastKunjungan.tglKunjungan);
+                
+                infoText += `<strong>${tglKunjunganFormatted}</strong>.<br>`;
+                infoText += `Status Terakhir: DM - <strong>${dmStatus}</strong>, HT - <strong>${htStatus}</strong>.`;
+
+                const tglObatConverted = convertDateToYYYYMMDD(lastKunjungan.tglObatBerikutnya);
+                document.getElementById('tglObatBerikutnya').value = tglObatConverted;
+
+            } else {
+                infoText += `<strong>Belum ada riwayat kunjungan</strong>.`;
+                document.getElementById('tglObatBerikutnya').value = '';
+            }
+            
+            infoDiv.innerHTML = `<i class="fas fa-info-circle mr-1"></i> ${infoText}`;
+
+            document.getElementById('tglKunjungan').value = new Date().toISOString().substring(0, 10);
+            document.getElementById('tdSistole').value = '';
+            document.getElementById('tdDiastole').value = '';
+            document.getElementById('gulaDarah').value = '';
+            document.getElementById('kesadaran').value = 'Compos Mentis';
+
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-plus-circle mr-2"></i> Tambah Kunjungan Baru untuk Pasien <strong>${pasien.namaPasien}</strong>`;
+            document.getElementById('submit-button').innerHTML = '<i class="fas fa-paper-plane mr-2"></i> Simpan Kunjungan Baru';
+            document.getElementById('cancel-button').classList.remove('hidden');
+            document.getElementById('delete-patient-button').classList.remove('hidden');
+
+            currentEditingKunjunganId = null;
+            formChanged = false;
+        }
+
+        function searchPasien(query, field) {
+            const resultsDiv = document.getElementById(`search-results-${field}`);
+            resultsDiv.innerHTML = '';
+
+            if (query.length < 3) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+            const filteredPasien = ALL_DATA.pasien
+                .filter(p => p[field].toLowerCase().includes(lowerQuery))
+                .slice(0, 5);
+
+            if (filteredPasien.length > 0) {
+                filteredPasien.forEach(p => {
+                    const item = document.createElement('div');
+                    item.classList.add('search-item');
+                    item.innerHTML = `
+                        <div>
+                            <strong>${p.namaPasien}</strong> 
+                            <span class="search-item-info">(${p.jenisPrb || 'PRB N/A'})</span>
+                        </div>
+                        <span class="search-item-info">${p.nik}</span>
+                    `;
+                    item.onclick = () => {
+                        fillFormWithPasienData(p.id);
+                        resultsDiv.style.display = 'none';
+                    };
+                    resultsDiv.appendChild(item);
+                });
+                resultsDiv.style.display = 'block';
+            } else {
+                resultsDiv.style.display = 'none';
+            }
+        }
+
+        const debouncedSearchNama = debounce((query) => searchPasien(query, 'namaPasien'), 300);
+        const debouncedSearchNik = debounce((query) => searchPasien(query, 'nik'), 300);
+
         function resetForm() {
             document.getElementById('pasien-input-form').reset();
             document.getElementById('pasienId').value = '';
             document.getElementById('form-title').innerHTML = '<i class="fas fa-notes-medical mr-2"></i> Input Data Kunjungan Pasien Prolanis';
             document.getElementById('submit-button').innerHTML = '<i class="fas fa-paper-plane mr-2"></i> Simpan Kunjungan Baru';
             document.getElementById('cancel-button').classList.add('hidden');
-            document.getElementById('patient-status-info').textContent = '';
-            // Set tanggal kunjungan hari ini
-            document.getElementById('tglKunjungan').value = new Date().toISOString().split('T')[0];
-            currentEditPasienId = null;
-            currentEditKunjunganId = null;
-            clearAutocompleteResults();
-            // Re-enable semua input IDENTITAS
-            document.querySelectorAll('#identity-panel input, #identity-panel select').forEach(el => el.disabled = false);
+            document.getElementById('delete-patient-button').classList.add('hidden');
+            document.getElementById('patient-status-info').style.display = 'none';
+
+            document.getElementById('tglKunjungan').value = new Date().toISOString().substring(0, 10);
+
+            document.getElementById('search-results-nama').style.display = 'none';
+            document.getElementById('search-results-nik').style.display = 'none';
+
+            clearAllErrors();
+
+            currentEditingKunjunganId = null;
+            currentEditingPasienId = null;
+            formChanged = false;
         }
-        
-        document.getElementById('pasien-input-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            showLoading();
-            setTimeout(() => { 
-                handleSubmitKunjungan();
-            }, 500);
-        });
 
-        document.getElementById('cancel-button').addEventListener('click', resetForm);
+        // =================================================================
+        // DASHBOARD LOGIC
+        // =================================================================
 
-        function handleSubmitKunjungan() {
-            const isEditKunjungan = !!currentEditKunjunganId;
-            const idPasien = document.getElementById('pasienId').value || generateUniqueId('PASIEN');
+        function renderDashboardSummary() {
+            const cardContainer = document.getElementById('summary-cards');
+            cardContainer.innerHTML = '';
             
-            const tglInput = new Date().toISOString(); 
-            const tglKunjungan = document.getElementById('tglKunjungan').value;
+            if (!ALL_DATA.pasien || !ALL_DATA.kunjungan) return;
 
-            // 1. Ambil/Update Data Pasien (MASTER)
-            let pasienIndex = DB_PASIEN.findIndex(p => p.id === idPasien);
-            let pasienData;
+            const totalPasien = ALL_DATA.pasien.length;
+            const totalKunjungan = ALL_DATA.kunjungan.length;
+            
+            let totalPasienProlanis = 0;
+            let totalPasienPRB = 0;
 
-            if (pasienIndex === -1) {
-                // Pasien Baru
-                pasienData = {
-                    id: idPasien,
-                    nama: namaInput.value.trim(),
-                    nik: nikInput.value.trim(),
-                    nomorHp: document.getElementById('nomorHp').value.trim(),
-                    statusProlanis: document.getElementById('statusProlanis').value,
-                    jenisPrb: document.getElementById('jenisPrb').value.trim(),
-                };
-                DB_PASIEN.push(pasienData);
+            let dmTerkendaliCount = 0;
+            let dmTidakTerkendaliCount = 0;
+            let htTerkendaliCount = 0;
+            let htTidakTerkendaliCount = 0;
+            
+            const lastKunjunganMap = new Map();
+            
+            ALL_DATA.kunjungan.forEach(kunjungan => {
+                if (!lastKunjunganMap.has(kunjungan.pasienId)) {
+                    lastKunjunganMap.set(kunjungan.pasienId, kunjungan);
+                }
+            });
+
+            ALL_DATA.pasien.forEach(pasien => {
+                if (pasien.statusProlanis === 'Ya') totalPasienProlanis++;
+                if (pasien.jenisPrb && pasien.jenisPrb.trim() !== '') totalPasienPRB++;
+
+                const lastKunjungan = lastKunjunganMap.get(pasien.id);
+                if (lastKunjungan) {
+                    if (isDmTerkendali(lastKunjungan.gulaDarah)) dmTerkendaliCount++;
+                    else if (lastKunjungan.gulaDarah !== '-') dmTidakTerkendaliCount++;
+
+                    if (isHtTerkendali(lastKunjungan.tdSistole, lastKunjungan.tdDiastole)) htTerkendaliCount++;
+                    else if (lastKunjungan.tdSistole && lastKunjungan.tdDiastole) htTidakTerkendaliCount++;
+                }
+            });
+            
+            const dmTotal = dmTerkendaliCount + dmTidakTerkendaliCount;
+            const htTotal = htTerkendaliCount + htTidakTerkendaliCount;
+            const dmTerkendaliPersen = dmTotal > 0 ? ((dmTerkendaliCount / dmTotal) * 100).toFixed(0) : 0;
+            const dmTidakTerkendaliPersen = dmTotal > 0 ? ((dmTidakTerkendaliCount / dmTotal) * 100).toFixed(0) : 0;
+            const htTerkendaliPersen = htTotal > 0 ? ((htTerkendaliCount / htTotal) * 100).toFixed(0) : 0;
+            const htTidakTerkendaliPersen = htTotal > 0 ? ((htTidakTerkendaliCount / htTotal) * 100).toFixed(0) : 0;
+
+            const cards = [
+                { title: 'Total Pasien', count: totalPasien, icon: 'fas fa-users', color: '#007bff' },
+                { title: 'Total Kunjungan', count: totalKunjungan, icon: 'fas fa-notes-medical', color: 'var(--secondary-color)' },
+                { title: 'Pasien Prolanis', count: totalPasienProlanis, icon: 'fas fa-check-circle', color: 'var(--primary-color)' },
+                { title: 'Pasien PRB/PRN', count: totalPasienPRB, icon: 'fas fa-file-medical-alt', color: '#ffc107', textcolor: '#333' },
+                { title: 'DM Terkendali', count: dmTerkendaliCount, percent: dmTerkendaliPersen, icon: 'fas fa-tint', color: 'var(--status-terkendali)', detail: `GD: 81-125` },
+                { title: 'DM Tidak Terkendali', count: dmTidakTerkendaliCount, percent: dmTidakTerkendaliPersen, icon: 'fas fa-exclamation-triangle', color: 'var(--status-tidak-terkendali)', detail: `GD: < 81 atau > 125` },
+                { title: 'HT Terkendali', count: htTerkendaliCount, percent: htTerkendaliPersen, icon: 'fas fa-heartbeat', color: 'var(--status-terkendali)', detail: `TDS: 100-130` },
+                { title: 'HT Tidak Terkendali', count: htTidakTerkendaliCount, percent: htTidakTerkendaliPersen, icon: 'fas fa-exclamation-triangle', color: 'var(--status-tidak-terkendali)', detail: `TDS: < 100 atau > 130` },
+            ];
+            
+            cards.forEach(card => {
+                const isStatusCard = card.title.includes('DM') || card.title.includes('HT');
+                const cardHtml = `
+                    <div class="dashboard-card" style="background-color: ${card.color}; color: ${card.textcolor || 'white'};">
+                        <div class="dashboard-card-content">
+                            <div class="dashboard-icon"><i class="${card.icon}"></i></div>
+                            <h4>${card.title}</h4>
+                            <p style="font-size: 2.5rem; font-weight: 700; margin: 0;">${card.count}${isStatusCard ? ' orang' : ''}</p>
+                            ${isStatusCard ? `
+                                <h5 style="font-size: 1.5rem; font-weight: 700; margin: 5px 0 0 0;">${card.percent}%</h5>
+                                <small style="margin-top: 5px;">Kriteria: ${card.detail}</small>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                cardContainer.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        function renderMonthlyRecap(target = 10) {
+            const tbody = document.getElementById('monthly-recap-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            const currentYear = new Date().getFullYear();
+            const monthlyData = {};
+            
+            for (let i = 1; i <= 12; i++) {
+                monthlyData[i] = 0;
+            }
+
+            ALL_DATA.kunjungan.forEach(kunjungan => {
+                const date = new Date(kunjungan.tglKunjungan + 'T00:00:00');
+                if (!isNaN(date) && date.getFullYear() === currentYear) {
+                    const month = date.getMonth() + 1;
+                    if (monthlyData[month] !== undefined) {
+                        monthlyData[month]++;
+                    }
+                }
+            });
+            
+            for (let i = 1; i <= 12; i++) {
+                const count = monthlyData[i];
+                const monthName = monthNames[i - 1];
+                const percentage = Math.min(100, (count / target) * 100).toFixed(0);
+                
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${monthName} ${currentYear}</td>
+                    <td>${count}</td>
+                    <td>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${percentage}%; background-color: ${count >= target ? 'var(--secondary-color)' : 'var(--primary-color)'};"></div>
+                        </div>
+                        <small>${percentage}% dari target ${target} kunjungan</small>
+                    </td>
+                `;
+            }
+        }
+
+        // =================================================================
+        // PASIEN TERLAMBAT LOGIC (FITUR BARU)
+        // =================================================================
+
+        function renderPasienTerlambat() {
+            const tbody = document.getElementById('pasien-terlambat-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const overduePatients = ALL_DATA.pasien.filter(pasien => {
+                const lastKunjungan = getLastKunjungan(pasien.id);
+                if (!lastKunjungan || !lastKunjungan.tglObatBerikutnya) {
+                    return false;
+                }
+                const nextMedDate = new Date(lastKunjungan.tglObatBerikutnya + 'T00:00:00');
+                return nextMedDate < today;
+            });
+
+            if (overduePatients.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center">Tidak ada pasien yang terlambat.</td></tr>`;
+                return;
+            }
+
+            const lastKunjunganMap = new Map();
+            ALL_DATA.kunjungan.forEach(kunjungan => {
+                if (!lastKunjunganMap.has(kunjungan.pasienId)) {
+                    lastKunjunganMap.set(kunjungan.pasienId, kunjungan);
+                }
+            });
+
+            overduePatients.forEach((pasien, index) => {
+                const lastKunjungan = lastKunjunganMap.get(pasien.id);
+                const rowNum = index + 1;
+                const statusBadge = pasien.sudahDihubungi 
+                    ? '<span class="status-badge status-sudah"><i class="fas fa-check-circle"></i> Sudah Dihubungi</span>' 
+                    : '<span class="status-badge status-belum"><i class="fas fa-clock"></i> Belum Dihubungi</span>';
+
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${rowNum}.</td>
+                    <td>${pasien.namaPasien}</td>
+                    <td>${pasien.nik}</td>
+                    <td>${formatDateToID(lastKunjungan.tglObatBerikutnya)}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="flex gap-2">
+                            <button class="btn-base btn-whatsapp btn-aksi" onclick="confirmContactOverduePatient('${pasien.id}', '${pasien.namaPasien}', '${formatDateToID(lastKunjungan.tglObatBerikutnya)}')" title="Hubungi via WA">
+                                <i class="fab fa-whatsapp"></i>
+                            </button>
+                            <button class="btn-base btn-detail btn-aksi" onclick="showRiwayatModal('${pasien.id}')" title="Lihat Riwayat">
+                                <i class="fas fa-history"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+            });
+        }
+
+        function confirmContactOverduePatient(pasienId, namaPasien, tglObat) {
+            showConfirmModal(
+                `Apakah Anda yakin ingin menghubungi <strong>${namaPasien}</strong> via WhatsApp untuk pengingat keterlambatan pada tanggal <strong>${tglObat}</strong>? Status akan berubah menjadi 'Sudah Dihubungi'.`,
+                () => contactOverduePatient(pasienId)
+            );
+        }
+
+        function contactOverduePatient(pasienId) {
+            const pasien = getPasienById(pasienId);
+            const lastKunjungan = getLastKunjungan(pasienId);
+
+            if (!pasien || !lastKunjungan) {
+                showStatusMessage('Data pasien atau kunjungan tidak ditemukan.', 'error');
+                return;
+            }
+
+            const message = `*PENGINGAT PENTING - Prolanis*
+Yth. Bapak/Ibu ${pasien.namaPasien},
+
+Mohon maaf, ini adalah pengingat bahwa jadwal pengambilan obat Anda pada tanggal ${formatDateToID(lastKunjungan.tglObatBerikutnya)} telah TERLEWAT.
+
+Hal ini penting untuk menjaga kondisi kesehatan Anda. Mohon segera menghubungi Puskesmas/Klinik kami untuk membuat jadwal baru.
+
+Terima kasih atas perhatian Anda.
+_Puskesmas/Klinik Anda_`;
+
+            const waUrl = `https://wa.me/${pasien.nomorHp}?text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
+
+            const patientIndex = ALL_DATA.pasien.findIndex(p => p.id === pasienId);
+            if (patientIndex !== -1) {
+                ALL_DATA.pasien[patientIndex].sudahDihubungi = true;
+                saveData();
+                renderPasienTerlambat();
+                showStatusMessage(`Status ${pasien.namaPasien} berhasil diperbarui menjadi 'Sudah Dihubungi'.`, 'success');
+            }
+        }
+
+        // =================================================================
+        // REKAPAN & DAFTAR PASIEN LOGIC
+        // =================================================================
+
+        function renderRekapanKunjungan(page = 1, searchTerm = '') {
+            const tbody = document.getElementById('pasien-data-body-rekapan');
+            const paginationDiv = document.getElementById('rekapan-pagination');
+            tbody.innerHTML = '';
+            paginationDiv.innerHTML = '';
+
+            const lowerSearch = searchTerm.toLowerCase();
+
+            let filteredKunjungan = ALL_DATA.kunjungan.filter(kunjungan => {
+                const pasien = getPasienById(kunjungan.pasienId);
+                if (!pasien) return false;
+                const matchesNama = pasien.namaPasien.toLowerCase().includes(lowerSearch);
+                const matchesNik = pasien.nik.toLowerCase().includes(lowerSearch);
+                return matchesNama || matchesNik;
+            });
+
+            const totalPages = Math.ceil(filteredKunjungan.length / PAGINATION_LIMIT);
+            const startIndex = (page - 1) * PAGINATION_LIMIT;
+            const paginatedKunjungan = filteredKunjungan.slice(startIndex, startIndex + PAGINATION_LIMIT);
+
+            if (paginatedKunjungan.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center">Tidak ada data kunjungan yang ditemukan.</td></tr>`;
             } else {
-                // Pasien Lama: Update Data Master (jika ada perubahan di mode EditPasien)
-                pasienData = DB_PASIEN[pasienIndex];
-                pasienData.nama = namaInput.value.trim();
-                pasienData.nik = nikInput.value.trim();
-                pasienData.nomorHp = document.getElementById('nomorHp').value.trim();
-                pasienData.statusProlanis = document.getElementById('statusProlanis').value;
-                pasienData.jenisPrb = document.getElementById('jenisPrb').value.trim();
+                paginatedKunjungan.forEach((kunjungan, index) => {
+                    const pasien = getPasienById(kunjungan.pasienId);
+                    if (!pasien) return;
+                    
+                    const rowNum = startIndex + index + 1;
+                    const dmStatus = getDmStatus(kunjungan.gulaDarah);
+                    const htStatus = getHtStatus(kunjungan.tdSistole, kunjungan.tdDiastole);
+                    
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${rowNum}.</td>
+                        <td>${pasien.namaPasien}</td>
+                        <td>${pasien.nik}</td>
+                        <td>${kunjungan.tdSistole}/${kunjungan.tdDiastole}</td>
+                        <td>${kunjungan.gulaDarah} <small>(${dmStatus})</small></td>
+                        <td>${convertDateToDDMMYYYY(kunjungan.tglObatBerikutnya)}</td>
+                        <td>${formatDateToID(kunjungan.tglKunjungan)}</td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button class="btn-base btn-detail btn-aksi" onclick="editKunjunganWrapper('${kunjungan.id}')" title="Edit Kunjungan">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-base btn-riwayat btn-aksi" onclick="showRiwayatModal('${pasien.id}')" title="Lihat Riwayat Pasien">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                                <button class="btn-base btn-whatsapp btn-aksi" onclick="sendWhatsappReminder('${pasien.id}', '${kunjungan.id}')" title="Kirim Pengingat WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                });
+                
+                renderPaginationControls(paginationDiv, totalPages, page, (p) => renderRekapanKunjungan(p, searchTerm));
+            }
+        }
+
+        function renderDaftarPasien(page = 1, searchTerm = '') {
+            const tbody = document.getElementById('pasien-data-body-daftar');
+            const paginationDiv = document.getElementById('daftar-pagination');
+            tbody.innerHTML = '';
+            paginationDiv.innerHTML = '';
+
+            const lowerSearch = searchTerm.toLowerCase();
+
+            let filteredPasien = ALL_DATA.pasien.filter(pasien => {
+                const matchesNama = pasien.namaPasien.toLowerCase().includes(lowerSearch);
+                const matchesNik = pasien.nik.toLowerCase().includes(lowerSearch);
+                return matchesNama || matchesNik;
+            });
+
+            const totalPages = Math.ceil(filteredPasien.length / PAGINATION_LIMIT);
+            const startIndex = (page - 1) * PAGINATION_LIMIT;
+            const paginatedPasien = filteredPasien.slice(startIndex, startIndex + PAGINATION_LIMIT);
+
+            if (paginatedPasien.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center">Tidak ada data pasien yang ditemukan.</td></tr>`;
+            } else {
+                const getStatusBadge = (status) => {
+                    let className = 'status-na';
+                    let icon = '';
+                    if (status === 'Terkendali') { className = 'status-terkendali'; icon = '<i class="fas fa-check-circle"></i>'; }
+                    if (status === 'Tidak Terkendali') { className = 'status-tidak-terkendali'; icon = '<i class="fas fa-times-circle"></i>'; }
+                    return `<span class="status-badge ${className}">${icon} ${status}</span>`;
+                };
+
+                const lastKunjunganMap = new Map();
+                ALL_DATA.kunjungan.forEach(kunjungan => {
+                    if (!lastKunjunganMap.has(kunjungan.pasienId)) {
+                        lastKunjunganMap.set(kunjungan.pasienId, kunjungan);
+                    }
+                });
+
+                paginatedPasien.forEach((pasien, index) => {
+                    const lastKunjungan = lastKunjunganMap.get(pasien.id);
+                    const dmStatus = lastKunjungan ? getDmStatus(lastKunjungan.gulaDarah) : 'N/A';
+                    const htStatus = lastKunjungan ? getHtStatus(parseInt(lastKunjungan.tdSistole), parseInt(lastKunjungan.tdDiastole)) : 'N/A';
+                    
+                    const rowNum = startIndex + index + 1;
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${rowNum}.</td>
+                        <td>${pasien.namaPasien}</td>
+                        <td>${pasien.nik}</td>
+                        <td>${pasien.statusProlanis} / ${pasien.jenisPrb || '-'}</td>
+                        <td>${getStatusBadge(dmStatus)}</td>
+                        <td>${getStatusBadge(htStatus)}</td>
+                        <td>${pasien.nomorHp}</td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button class="btn-base btn-detail btn-aksi" onclick="fillFormWithPasienData('${pasien.id}'); activateSection('input-form-area');" title="Input Kunjungan Baru">
+                                    <i class="fas fa-notes-medical"></i>
+                                </button>
+                                <button class="btn-base btn-riwayat btn-aksi" onclick="showRiwayatModal('${pasien.id}')" title="Lihat Riwayat Pasien">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                                <button class="btn-base btn-delete-pasien btn-aksi" onclick="confirmDeletePasien('${pasien.id}', '${pasien.namaPasien}')" title="Hapus Semua Data Pasien">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                });
+                
+                renderPaginationControls(paginationDiv, totalPages, page, (p) => renderDaftarPasien(p, searchTerm));
+            }
+        }
+
+        function renderPaginationControls(container, totalPages, currentPage, callback) {
+            if (totalPages <= 1) return;
+
+            const createButton = (text, page, isActive = false, isDisabled = false) => {
+                const button = document.createElement('button');
+                button.classList.add('btn-base', 'btn-cancel', 'btn-aksi');
+                if (isActive) {
+                    button.style.backgroundColor = 'var(--primary-color)';
+                    button.style.color = 'white';
+                }
+                if (isDisabled) {
+                    button.disabled = true;
+                    button.style.opacity = '0.5';
+                }
+                button.textContent = text;
+                if (!isDisabled) {
+                    button.onclick = () => callback(page);
+                }
+                return button;
+            };
+
+            container.appendChild(createButton('<', currentPage - 1, false, currentPage === 1));
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (currentPage <= 3) {
+                endPage = Math.min(totalPages, 5);
+            } else if (currentPage > totalPages - 2) {
+                startPage = Math.max(1, totalPages - 4);
             }
             
-            // 2. Buat data Kunjungan (RIWAYAT BARU atau UPDATE RIWAYAT LAMA)
-            const newKunjungan = {
-                id: isEditKunjungan ? currentEditKunjunganId : generateUniqueId('KUNJUNGAN'),
-                pasienId: idPasien, 
-                tglKunjungan: tglKunjungan, 
-                tdSistole: parseInt(document.getElementById('tdSistole').value),
-                tdDiastole: parseInt(document.getElementById('tdDiastole').value),
+            if (startPage > 1) {
+                container.appendChild(createButton('1', 1));
+                if (startPage > 2) {
+                    const span = document.createElement('span');
+                    span.textContent = '...';
+                    span.style.padding = '10px';
+                    container.appendChild(span);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                container.appendChild(createButton(String(i), i, i === currentPage));
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const span = document.createElement('span');
+                    span.textContent = '...';
+                    span.style.padding = '10px';
+                    container.appendChild(span);
+                }
+                container.appendChild(createButton(String(totalPages), totalPages));
+            }
+
+            container.appendChild(createButton('>', currentPage + 1, false, currentPage === totalPages));
+        }
+
+        function loadAllDataViews() {
+            loadData();
+            ALL_DATA.kunjungan.sort((a, b) => new Date(b.tglKunjungan) - new Date(a.tglKunjungan));
+            
+            setTimeout(() => {
+                renderDashboardSummary();
+                renderMonthlyRecap();
+                renderPasienTerlambat();
+            }, 0);
+            
+            setTimeout(() => {
+                renderRekapanKunjungan(1, '');
+                renderDaftarPasien(1, '');
+            }, 10);
+        }
+
+        // =================================================================
+        // FORM SUBMISSION & DATA HANDLING
+        // =================================================================
+
+        function findDuplicatePasien(nama, nik) {
+            const lowerNama = nama.toLowerCase();
+            const lowerNik = nik.toLowerCase();
+            
+            const duplicateByNik = ALL_DATA.pasien.find(p => 
+                p.nik.toLowerCase() === lowerNik && p.id !== currentEditingPasienId
+            );
+            
+            if (duplicateByNik) return duplicateByNik;
+            
+            const duplicateByName = ALL_DATA.pasien.find(p => 
+                p.namaPasien.toLowerCase() === lowerNama && p.id !== currentEditingPasienId
+            );
+            
+            return duplicateByName;
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            clearAllErrors();
+            showLoading('Memproses data...');
+
+            const pasienIdInput = document.getElementById('pasienId');
+            
+            const pasienData = {
+                namaPasien: document.getElementById('namaPasien').value.trim(),
+                nik: document.getElementById('nik').value.trim(),
+                nomorHp: document.getElementById('nomorHp').value.trim(),
+                statusProlanis: document.getElementById('statusProlanis').value,
+                jenisPrb: document.getElementById('jenisPrb').value.trim(),
+            };
+
+            const kunjunganData = {
+                tglKunjungan: document.getElementById('tglKunjungan').value,
+                tdSistole: document.getElementById('tdSistole').value.trim(),
+                tdDiastole: document.getElementById('tdDiastole').value.trim(),
                 gulaDarah: document.getElementById('gulaDarah').value.trim(),
                 kesadaran: document.getElementById('kesadaran').value,
                 tglObatBerikutnya: document.getElementById('tglObatBerikutnya').value,
-                tglInput: tglInput, // **WAKTU PENGINPUTAN**
             };
 
-            if (isEditKunjungan) {
-                const kunjunganIndex = DB_KUNJUNGAN.findIndex(k => k.id === currentEditKunjunganId);
-                if (kunjunganIndex !== -1) {
-                    DB_KUNJUNGAN[kunjunganIndex] = newKunjungan;
+            const errors = validateKunjunganData(kunjunganData);
+            if (errors.length > 0) {
+                hideLoading();
+                errors.forEach(err => showFieldError(err.field, err.message));
+                return;
+            }
+
+            if (currentEditingKunjunganId) {
+                editKunjungan(currentEditingKunjunganId, pasienData, kunjunganData);
+                return;
+            }
+            
+            if (pasienIdInput.value) {
+                const existingVisit = ALL_DATA.kunjungan.find(k => 
+                    k.pasienId === pasienIdInput.value && k.tglKunjungan === kunjunganData.tglKunjungan
+                );
+                
+                if (existingVisit) {
+                    hideLoading();
+                    showStatusMessage('Kunjungan untuk pasien ini pada tanggal yang sama sudah ada. Silakan edit kunjungan yang sudah ada.', 'warning');
+                    return;
+                }
+
+                saveNewPatientAndVisit(pasienData, kunjunganData, pasienIdInput.value);
+                return;
+            }
+
+            const duplicatePasien = findDuplicatePasien(pasienData.namaPasien, pasienData.nik);
+            
+            if (duplicatePasien) {
+                hideLoading();
+                showDuplicateModal(duplicatePasien, kunjunganData);
+            } else {
+                saveNewPatientAndVisit(pasienData, kunjunganData, null);
+            }
+        }
+
+        function saveNewPatientAndVisit(pasienData, kunjunganData, existingPasienId = null) {
+            showLoading('Menyimpan data baru...');
+            let pasienId;
+            let pasienName = pasienData.namaPasien;
+            let isNewPasien = false;
+
+            if (existingPasienId) {
+                pasienId = existingPasienId;
+                const pasienIndex = ALL_DATA.pasien.findIndex(p => p.id === existingPasienId);
+                if (pasienIndex !== -1) {
+                    ALL_DATA.pasien[pasienIndex] = { ...ALL_DATA.pasien[pasienIndex], ...pasienData };
+                    pasienName = ALL_DATA.pasien[pasienIndex].namaPasien;
                 }
             } else {
-                // Menambah riwayat baru
-                DB_KUNJUNGAN.push(newKunjungan);
+                isNewPasien = true;
+                pasienId = generateUniqueId();
+                const newPasien = { id: pasienId, ...pasienData };
+                ALL_DATA.pasien.push(newPasien);
             }
+
+            const kunjunganDataToSave = {
+                ...kunjunganData,
+                tglKunjungan: kunjunganData.tglKunjungan,
+                tglObatBerikutnya: kunjunganData.tglObatBerikutnya
+            };
+
+            const newKunjungan = { 
+                id: generateUniqueId(), 
+                pasienId: pasienId, 
+                ...kunjunganDataToSave
+            };
+
+            ALL_DATA.kunjungan.unshift(newKunjungan);
+            
+            saveData();
+            hideLoading();
+            showStatusMessage(`Pasien ${pasienName} dan kunjungan baru berhasil ditambahkan!`, 'success');
+            resetForm();
+            
+            loadAllDataViews();
+
+            activateSection('rekapan-section');
+        }
+
+        function editKunjungan(kunjunganId, newPasienData, newKunjunganData) {
+            showLoading('Memperbarui kunjungan...');
+            const kunjunganIndex = ALL_DATA.kunjungan.findIndex(k => k.id === kunjunganId);
+            
+            if (kunjunganIndex === -1) {
+                hideLoading();
+                showStatusMessage('Gagal: Data kunjungan tidak ditemukan.', 'error');
+                return;
+            }
+            
+            const pasienId = ALL_DATA.kunjungan[kunjunganIndex].pasienId;
+            const pasienIndex = ALL_DATA.pasien.findIndex(p => p.id === pasienId);
+
+            const kunjunganDataToSave = {
+                ...newKunjunganData,
+                tglKunjungan: newKunjunganData.tglKunjungan,
+                tglObatBerikutnya: newKunjunganData.tglObatBerikutnya
+            };
+
+            ALL_DATA.kunjungan[kunjunganIndex] = {
+                ...ALL_DATA.kunjungan[kunjunganIndex],
+                ...kunjunganDataToSave,
+                id: kunjunganId,
+                pasienId: pasienId 
+            };
+            
+            if (pasienIndex !== -1) {
+                ALL_DATA.pasien[pasienIndex] = {
+                    ...ALL_DATA.pasien[pasienIndex],
+                    ...newPasienData,
+                    id: pasienId 
+                };
+            }
+
+            ALL_DATA.kunjungan.sort((a, b) => new Date(b.tglKunjungan) - new Date(a.tglKunjungan));
 
             saveData();
-            showStatus(isEditKunjungan ? 'Data kunjungan berhasil diperbarui.' : 'Data kunjungan berhasil disimpan!', 'success');
+            hideLoading();
+            showStatusMessage(`Kunjungan pasien ${newPasienData.namaPasien} berhasil diperbarui!`, 'success');
             resetForm();
-            updateDashboard();
-            switchSection('rekapan-section'); 
-            showLoading(false);
-        }
-
-        // --- E. Autocomplete, Pengecekan Duplikasi & Load Data ---
-
-        function clearAutocompleteResults() {
-            resultsNama.innerHTML = '';
-            resultsNik.innerHTML = '';
-        }
-
-        // Fungsi untuk memuat data pasien (dipicu dari modal/autocomplete)
-        window.loadPatientData = function(pasienId, sourceInputId) {
-            const patient = DB_PASIEN.find(p => p.id === pasienId);
-            if (!patient) return;
-
-            showLoading();
-            setTimeout(() => {
-                resetForm(); 
-                currentEditPasienId = pasienId;
-                
-                // 1. Isi Form Identitas (Data Master Pasien)
-                document.getElementById('pasienId').value = pasienId;
-                document.getElementById('namaPasien').value = patient.nama;
-                document.getElementById('nik').value = patient.nik;
-                document.getElementById('nomorHp').value = patient.nomorHp;
-                document.getElementById('statusProlanis').value = patient.statusProlanis;
-                document.getElementById('jenisPrb').value = patient.jenisPrb;
-
-                // 2. Kunci Kolom Identitas agar hanya menginput riwayat baru
-                document.querySelectorAll('#identity-panel input, #identity-panel select').forEach(el => el.disabled = true);
-
-                // 3. Update UI
-                document.getElementById('form-title').innerHTML = `<i class="fas fa-plus mr-2"></i> Kunjungan Baru untuk ${patient.nama}`;
-                document.getElementById('submit-button').innerHTML = '<i class="fas fa-edit mr-2"></i> Simpan RIWAYAT Kunjungan Terbaru';
-                document.getElementById('cancel-button').classList.remove('hidden');
-                document.getElementById('patient-status-info').textContent = `Pasien ditemukan. Anda akan menambahkan RIWAYAT kunjungan baru.`;
-                
-                document.getElementById('tdSistole').focus();
-                clearAutocompleteResults();
-                showLoading(false);
-                showStatus('Data pasien ditemukan. Silakan isi data pemeriksaan untuk riwayat baru.', 'info');
-            }, 100);
-        }
-
-        // Fungsi untuk memicu Modal Konfirmasi jika Pasien Ditemukan (Duplikasi)
-        function checkAndOpenDuplicateModal() {
-            const nama = namaInput.value.trim();
-            const nik = nikInput.value.trim();
             
-            clearAutocompleteResults(); 
-
-            // Tidak perlu cek jika Pasien ID sudah terisi (berarti sedang mode edit)
-            if ((!nama && !nik) || document.getElementById('pasienId').value) return; 
-
-            let matchingPatient = null;
+            loadAllDataViews();
             
-            // Prioritas 1: Cek NIK (Harus sama persis)
-            if (nik && nik.length >= 10) {
-                matchingPatient = DB_PASIEN.find(p => p.nik === nik && p.nik !== "");
+            activateSection('rekapan-section');
+        }
+
+        function fillFormWithKunjunganData(kunjunganId) {
+            const kunjungan = getKunjunganById(kunjunganId);
+            if (!kunjungan) {
+                showStatusMessage('Data kunjungan tidak ditemukan.', 'error');
+                return;
             }
-
-            // Prioritas 2: Cek Nama (Jika NIK tidak cocok)
-            if (!matchingPatient && nama && nama.length > 3) {
-                matchingPatient = DB_PASIEN.find(p => p.nama.toLowerCase() === nama.toLowerCase());
-            }
-
-            if (matchingPatient) {
-                // Tampilkan Modal Kecil/Pilihan
-                document.getElementById('modal-patient-name').textContent = matchingPatient.nama;
-                document.getElementById('modal-patient-nik').textContent = matchingPatient.nik || 'N/A';
-                document.getElementById('modal-patient-id-preview').textContent = matchingPatient.id.substring(0, 8) + '...';
-                
-                // Lanjutkan Kunjungan (Tambah Riwayat)
-                document.getElementById('btn-lanjut-lama').onclick = () => {
-                    closeModal('duplicate-patient-modal');
-                    loadPatientData(matchingPatient.id, 'nik'); 
-                };
-
-                // Abaikan & Buat Baru
-                document.getElementById('btn-buat-baru').onclick = () => {
-                    closeModal('duplicate-patient-modal');
-                    resetForm(); 
-                    namaInput.value = nama;
-                    nikInput.value = nik;
-                    document.getElementById('patient-status-info').textContent = `Anda memilih membuat data baru. ID Pasien baru akan dibuat saat disimpan.`;
-                    showStatus('Mode Pasien BARU diaktifkan.', 'warning');
-                };
-
-                openModal('duplicate-patient-modal');
-            } 
-        }
-        
-        // Fungsi Autocomplete generik (menampilkan dropdown)
-        function handleSearchInput(inputEl, resultsEl, keyField) {
-            const query = inputEl.value.trim();
-            resultsEl.innerHTML = ''; // Hapus hasil lama
-
-            if (query.length > 2) {
-                const filtered = DB_PASIEN.filter(p => p[keyField].toLowerCase().includes(query.toLowerCase()));
-                if (filtered.length > 0) {
-                    filtered.slice(0, 5).forEach(p => {
-                        const item = document.createElement('div');
-                        item.className = 'search-item';
-                        item.innerHTML = `
-                            <span>${p.nama} (${p.nik})</span>
-                            <span class="search-item-info">ID: ${p.id.substring(0, 8)}</span>
-                        `;
-                        item.addEventListener('click', () => loadPatientData(p.id, inputEl.id));
-                        resultsEl.appendChild(item);
-                    });
-                }
-            }
-        }
-
-        // Event listener utama untuk memicu pencarian dan modal
-        namaInput.addEventListener('input', () => {
-            handleSearchInput(namaInput, resultsNama, 'nama');
-            checkAndOpenDuplicateModal(); 
-        });
-        
-        nikInput.addEventListener('input', () => {
-            handleSearchInput(nikInput, resultsNik, 'nik');
-            checkAndOpenDuplicateModal();
-        });
-
-
-        // --- F. Tabel Display & Aksi ---
-        
-        window.getKunjunganRow = function(kunjungan, index, patient) {
-            const tdStyle = 'font-size: 0.9rem;';
-            const tglKunjunganFormatted = new Date(kunjungan.tglKunjungan).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'});
-
-            return `
-                <tr data-kunjungan-id="${kunjungan.id}" data-pasien-id="${kunjungan.pasienId}">
-                    <td style="${tdStyle}">${index + 1}</td>
-                    <td style="${tdStyle}">${patient ? patient.nama : 'N/A'}</td>
-                    <td style="${tdStyle}">${patient ? patient.nik : 'N/A'}</td>
-                    <td style="${tdStyle}">${kunjungan.tdSistole}/${kunjungan.tdDiastole}</td>
-                    <td style="${tdStyle}">${kunjungan.gulaDarah}</td>
-                    <td style="${tdStyle}">${kunjungan.tglObatBerikutnya || '-'}</td>
-                    <td style="${tdStyle}">${new Date(kunjungan.tglInput).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} ${new Date(kunjungan.tglInput).toLocaleTimeString('id-ID')}</td>
-                    <td style="${tdStyle}">
-                        <div class="flex gap-2">
-                            <button class="btn-base btn-detail btn-aksi" onclick="editKunjungan('${kunjungan.id}')" title="Edit Kunjungan"><i class="fas fa-edit"></i></button>
-                            <button class="btn-base btn-delete-pasien btn-aksi" onclick="promptDeleteKunjungan('${kunjungan.id}')" title="Hapus Kunjungan"><i class="fas fa-trash-alt"></i></button>
-                            <button class="btn-base btn-whatsapp btn-aksi" onclick="sendWhatsApp('${patient.nomorHp || ''}', '${patient.nama || ''}', '${kunjungan.id}')" title="Kirim WA Pengingat"><i class="fab fa-whatsapp"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-
-        window.getPasienRow = function(pasien, index) {
-            const tdStyle = 'font-size: 0.9rem;';
-            const statusClass = pasien.statusProlanis === 'Ya' ? 'text-green-500 font-semibold' : (pasien.statusProlanis === 'Perlu Dicek' ? 'text-yellow-500' : 'text-red-500');
-            return `
-                <tr data-pasien-id="${pasien.id}">
-                    <td style="${tdStyle}">${index + 1}</td>
-                    <td style="${tdStyle}">${pasien.nama}</td>
-                    <td style="${tdStyle}">${pasien.nik}</td>
-                    <td style="${tdStyle} ${statusClass}">${pasien.statusProlanis}</td>
-                    <td style="${tdStyle}">${pasien.jenisPrb || '-'}</td>
-                    <td style="${tdStyle}">${pasien.nomorHp || '-'}</td>
-                    <td style="${tdStyle}">
-                        <div class="flex gap-2">
-                            <button class="btn-base btn-detail btn-aksi" onclick="editPasien('${pasien.id}')" title="Edit Data Master"><i class="fas fa-edit"></i></button>
-                            <button class="btn-base btn-delete-pasien btn-aksi" onclick="promptDeletePasien('${pasien.id}')" title="Hapus Pasien Permanen"><i class="fas fa-trash-alt"></i></button>
-                            <button class="btn-base btn-riwayat btn-aksi" onclick="showPatientHistory('${pasien.id}')" title="Lihat Riwayat Kunjungan"><i class="fas fa-history"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-
-        function renderKunjunganTable(filterFn = () => true) {
-            const tbody = document.getElementById('pasien-data-body-rekapan');
-            tbody.innerHTML = '';
             
-            const filteredKunjungan = DB_KUNJUNGAN
-                .filter(filterFn)
-                .sort((a, b) => new Date(b.tglInput) - new Date(a.tglInput)); 
-
-            if (filteredKunjungan.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center">Tidak ada data kunjungan yang cocok.</td></tr>';
+            const pasien = getPasienById(kunjungan.pasienId);
+            if (!pasien) {
+                showStatusMessage('Data pasien tidak ditemukan.', 'error');
                 return;
             }
 
-            filteredKunjungan.forEach((kunjungan, index) => {
-                const patient = DB_PASIEN.find(p => p.id === kunjungan.pasienId);
-                if (patient) {
-                    tbody.innerHTML += getKunjunganRow(kunjungan, index, patient);
-                }
-            });
+            currentEditingKunjunganId = kunjunganId;
+            currentEditingPasienId = pasien.id;
+
+            document.getElementById('pasienId').value = pasien.id;
+            document.getElementById('namaPasien').value = pasien.namaPasien;
+            document.getElementById('nik').value = pasien.nik;
+            document.getElementById('nomorHp').value = pasien.nomorHp;
+            document.getElementById('statusProlanis').value = pasien.statusProlanis;
+            document.getElementById('jenisPrb').value = pasien.jenisPrb;
+
+            document.getElementById('tglKunjungan').value = kunjungan.tglKunjungan;
+            document.getElementById('tdSistole').value = kunjungan.tdSistole;
+            document.getElementById('tdDiastole').value = kunjungan.tdDiastole;
+            document.getElementById('gulaDarah').value = kunjungan.gulaDarah;
+            document.getElementById('kesadaran').value = kunjungan.kesadaran;
+            
+            const tglObatConverted = convertDateToYYYYMMDD(kunjungan.tglObatBerikutnya);
+            document.getElementById('tglObatBerikutnya').value = tglObatConverted;
+
+            activateSection('input-form-area');
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-edit mr-2"></i> Edit Kunjungan Pasien <strong>${pasien.namaPasien}</strong>`;
+            document.getElementById('submit-button').innerHTML = '<i class="fas fa-save mr-2"></i> Perbarui Kunjungan';
+            document.getElementById('cancel-button').classList.remove('hidden');
+            document.getElementById('delete-patient-button').classList.add('hidden');
+            document.getElementById('patient-status-info').style.display = 'none';
+            
+            formChanged = false;
         }
 
-        function renderDaftarPasien(filterFn = () => true) {
-            const tbody = document.getElementById('pasien-data-body-daftar');
+        function editKunjunganWrapper(kunjunganId) {
+            fillFormWithKunjunganData(kunjunganId);
+        }
+
+        // =================================================================
+        // MODAL & CONFIRMATION LOGIC
+        // =================================================================
+
+        function showDuplicateModal(pasien, kunjungan) {
+            const modal = document.getElementById('duplicate-patient-modal');
+            document.getElementById('modal-patient-name').textContent = pasien.namaPasien;
+            document.getElementById('modal-patient-nik').textContent = pasien.nik;
+            document.getElementById('modal-patient-id-preview').textContent = pasien.id;
+            modal.style.display = 'flex';
+            duplicatePasienData = pasien;
+            duplicateKunjunganData = kunjungan;
+        }
+
+        function hideDuplicateModal() {
+            document.getElementById('duplicate-patient-modal').style.display = 'none';
+            duplicatePasienData = null;
+            duplicateKunjunganData = null;
+        }
+
+        function showRiwayatModal(pasienId) {
+            const modal = document.getElementById('riwayat-modal');
+            const pasien = getPasienById(pasienId);
+            if (!pasien) return;
+
+            const riwayatKunjungan = ALL_DATA.kunjungan
+                .filter(k => k.pasienId === pasienId)
+                .sort((a,b) => new Date(b.tglKunjungan) - new Date(a.tglKunjungan));
+
+            document.getElementById('riwayat-nama-pasien').textContent = pasien.namaPasien;
+            document.getElementById('riwayat-nik-pasien').textContent = pasien.nik;
+            document.getElementById('riwayat-prb-pasien').textContent = pasien.jenisPrb || '-';
+            document.getElementById('riwayat-hp-pasien').textContent = pasien.nomorHp || '-';
+
+            const tbody = document.getElementById('riwayat-kunjungan-body');
             tbody.innerHTML = '';
+            
+            const exportButton = document.getElementById('export-riwayat-button');
+            const printButton = document.getElementById('print-riwayat-button');
+            const safePasienName = pasien.namaPasien.replace(/[^a-zA-Z0-9]/g, '_');
+            exportButton.onclick = () => exportTableToCSV('riwayat-kunjungan-table', `RiwayatKunjungan_${safePasienName}.csv`);
+            printButton.onclick = () => exportTableToPDF('riwayat-kunjungan-table', `RiwayatKunjungan_${safePasienName}.pdf`);
 
-            const filteredPasien = DB_PASIEN
-                .filter(filterFn)
-                .sort((a, b) => a.nama.localeCompare(b.nama));
+            if (riwayatKunjungan.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">Belum ada riwayat kunjungan.</td></tr>`;
+            } else {
+                riwayatKunjungan.forEach((kunjungan, index) => {
+                    const dmStatus = getDmStatus(kunjungan.gulaDarah);
+                    const htStatus = getHtStatus(kunjungan.tdSistole, kunjungan.tdDiastole);
 
-            if (filteredPasien.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">Tidak ada data pasien yang cocok.</td></tr>';
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${index + 1}.</td>
+                        <td>${formatDateToID(kunjungan.tglKunjungan)}</td>
+                        <td>${kunjungan.tdSistole}/${kunjungan.tdDiastole}</td>
+                        <td>${kunjungan.gulaDarah} mg/dL</td>
+                        <td>DM: ${dmStatus}<br>HT: ${htStatus}</td>
+                        <td>${convertDateToDDMMYYYY(kunjungan.tglObatBerikutnya)}</td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button class="btn-base btn-detail btn-aksi" onclick="hideRiwayatModal(); fillFormWithKunjunganData('${kunjungan.id}');" title="Edit Riwayat">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-base btn-delete-pasien btn-aksi" onclick="confirmDeleteKunjungan('${kunjungan.id}', '${pasien.namaPasien}', '${formatDateToID(kunjungan.tglKunjungan)}')">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                });
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function hideRiwayatModal() {
+            document.getElementById('riwayat-modal').style.display = 'none';
+        }
+
+        function showConfirmModal(message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-message').innerHTML = message;
+            modal.style.display = 'flex';
+
+            const btnYes = document.getElementById('btn-confirm-yes');
+            const btnNo = document.getElementById('btn-confirm-no');
+
+            const newBtnYes = btnYes.cloneNode(true);
+            btnYes.parentNode.replaceChild(newBtnYes, btnYes);
+            newBtnYes.addEventListener('click', () => {
+                hideConfirmModal();
+                onConfirm();
+                loadAllDataViews();
+            });
+
+            const newBtnNo = btnNo.cloneNode(true);
+            btnNo.parentNode.replaceChild(newBtnNo, btnNo);
+            newBtnNo.addEventListener('click', hideConfirmModal);
+        }
+
+        function hideConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        function confirmDeleteKunjungan(kunjunganId, namaPasien, tglKunjungan) {
+            hideRiwayatModal();
+            showConfirmModal(
+                `Apakah Anda yakin ingin menghapus <strong>SATU RIWAYAT KUNJUNGAN</strong> pasien ${namaPasien} pada tanggal ${tglKunjungan}?`,
+                () => deleteKunjungan(kunjunganId)
+            );
+        }
+
+        function confirmDeletePasien(pasienId, namaPasien) {
+            showConfirmModal(
+                `PERINGATAN: Apakah Anda yakin ingin menghapus <strong>SELURUH DATA PASIEN</strong> ${namaPasien} (termasuk semua riwayat kunjungannya)? Tindakan ini tidak dapat dibatalkan.`,
+                () => deletePasienAndRiwayat(pasienId)
+            );
+        }
+
+               // =================================================================
+        // WHATSAPP & EXPORT LOGIC
+        // =================================================================
+
+        function sendWhatsappReminder(pasienId, kunjunganId) {
+            const pasien = getPasienById(pasienId);
+            const kunjungan = getKunjunganById(kunjunganId);
+
+            if (!pasien || !kunjungan) {
+                showStatusMessage('Data pasien atau kunjungan tidak ditemukan.', 'error');
                 return;
             }
 
-            filteredPasien.forEach((pasien, index) => {
-                tbody.innerHTML += getPasienRow(pasien, index);
-            });
-        }
-
-        // --- G. Aksi CRUD/Utility ---
-
-        window.editPasien = function(pasienId) {
-            const patient = DB_PASIEN.find(p => p.id === pasienId);
-            if (!patient) return showStatus('Pasien tidak ditemukan!', 'error');
-
-            showLoading();
-            setTimeout(() => {
-                switchSection('input-form-area');
-                
-                document.getElementById('pasienId').value = patient.id;
-                document.getElementById('namaPasien').value = patient.nama;
-                document.getElementById('nik').value = patient.nik;
-                document.getElementById('nomorHp').value = patient.nomorHp;
-                document.getElementById('statusProlanis').value = patient.statusProlanis;
-                document.getElementById('jenisPrb').value = patient.jenisPrb;
-                document.getElementById('tglKunjungan').value = new Date().toISOString().split('T')[0];
-
-                document.querySelectorAll('#identity-panel input, #identity-panel select').forEach(el => el.disabled = false);
-
-                document.getElementById('form-title').innerHTML = `<i class="fas fa-user-edit mr-2"></i> Edit Data Master Pasien ${patient.nama}`;
-                document.getElementById('submit-button').innerHTML = '<i class="fas fa-save mr-2"></i> Update Data Pasien & Tambah Kunjungan';
-                document.getElementById('cancel-button').classList.remove('hidden');
-                document.getElementById('patient-status-info').textContent = `Anda mengedit data MASTER pasien. Kunjungan baru akan ditambahkan setelah submit.`;
-                
-                showLoading(false);
-            }, 100);
-        }
-
-        window.editKunjungan = function(kunjunganId) {
-            const kunjungan = DB_KUNJUNGAN.find(k => k.id === kunjunganId);
-            const patient = DB_PASIEN.find(p => p.id === kunjungan.pasienId);
-            if (!kunjungan || !patient) return showStatus('Data kunjungan/pasien tidak ditemukan!', 'error');
-
-            showLoading();
-            setTimeout(() => {
-                resetForm();
-                switchSection('input-form-area');
-                
-                currentEditKunjunganId = kunjunganId;
-                document.getElementById('pasienId').value = patient.id;
-                document.getElementById('tdSistole').value = kunjungan.tdSistole;
-                document.getElementById('tdDiastole').value = kunjungan.tdDiastole;
-                document.getElementById('gulaDarah').value = kunjungan.gulaDarah;
-                document.getElementById('kesadaran').value = kunjungan.kesadaran;
-                document.getElementById('tglObatBerikutnya').value = kunjungan.tglObatBerikutnya;
-                document.getElementById('tglKunjungan').value = kunjungan.tglKunjungan;
-                
-                document.getElementById('namaPasien').value = patient.nama;
-                document.getElementById('nik').value = patient.nik;
-                document.getElementById('nomorHp').value = patient.nomorHp;
-                document.getElementById('statusProlanis').value = patient.statusProlanis;
-                document.getElementById('jenisPrb').value = patient.jenisPrb;
-
-                document.getElementById('form-title').innerHTML = `<i class="fas fa-edit mr-2"></i> Edit Kunjungan Tanggal ${kunjungan.tglKunjungan} (${patient.nama})`;
-                document.getElementById('submit-button').innerHTML = '<i class="fas fa-save mr-2"></i> Update Data Kunjungan';
-                document.getElementById('cancel-button').classList.remove('hidden');
-                document.getElementById('patient-status-info').textContent = `Anda sedang mengedit data kunjungan lama, bukan data master pasien.`;
-
-                document.querySelectorAll('#identity-panel input, #identity-panel select').forEach(el => el.disabled = true);
-                document.getElementById('pemeriksaan-panel').querySelector('input[type="number"]').focus();
-                
-                showLoading(false);
-                showStatus('Siap mengedit data kunjungan.', 'info');
-            }, 100);
-        }
-
-        window.showPatientHistory = function(pasienId) {
-            const patient = DB_PASIEN.find(p => p.id === pasienId);
-            if (!patient) return;
-
-            switchSection('rekapan-section');
-            document.getElementById('rekapan-title').textContent = `Rekap Riwayat Kunjungan: ${patient.nama} (${patient.nik})`;
-
-            renderKunjunganTable(k => k.pasienId === pasienId);
+            const tglKontrol = kunjungan.tglObatBerikutnya;
+            const hariIni = new Date().toISOString().substring(0, 10);
+            const diffDays = daysDifference(convertDateToDDMMYYYY(hariIni), convertDateToDDMMYYYY(tglKontrol));
             
-            document.getElementById('search-input-rekapan').value = patient.nama;
-            document.getElementById('search-button-rekapan').onclick = () => {
-                document.getElementById('rekapan-title').textContent = 'Data Kunjungan Terbaru';
-                document.getElementById('search-input-rekapan').value = '';
-                renderKunjunganTable();
-            };
+            let pesanStatus = '';
+            if (diffDays > 7) {
+                pesanStatus = `Jadwal kontrol Anda masih pada ${convertDateToDDMMYYYY(tglKontrol)} (sekitar ${diffDays} hari lagi).`;
+            } else if (diffDays >= 0 && diffDays <= 7) {
+                pesanStatus = `Jadwal kontrol Anda sudah dekat pada ${convertDateToDDMMYYYY(tglKontrol)}. Mohon siapkan diri.`;
+            } else if (diffDays < 0) {
+                pesanStatus = `Jadwal kontrol Anda sudah terlewat pada tanggal ${convertDateToDDMMYYYY(tglKontrol)}. Mohon segera datang!`;
+            } else {
+                pesanStatus = `Jadwal kontrol Anda masih pada ${convertDateToDDMMYYYY(tglKontrol)}.`;
+            }
+
+            const message = `*Pesan Pengingat Kontrol Prolanis*
+Yth. Bapak/Ibu ${pasien.namaPasien},
+Kami mengingatkan jadwal kontrol Prolanis Anda di faskes kami.
+
+*Jadwal Kontrol Obat Berikutnya:* ${convertDateToDDMMYYYY(tglKontrol)}
+*Status:* ${pesanStatus}
+
+*Data Kunjungan Terakhir (${formatDateToID(kunjungan.tglKunjungan)}):*
+TD: ${kunjungan.tdSistole}/${kunjungan.tdDiastole} mmHg
+Gula Darah: ${kunjungan.gulaDarah} mg/dL
+ ${pasien.jenisPrb ? `Jenis PRB: ${pasien.jenisPrb}` : ''}
+
+Mohon siapkan diri dan datang tepat waktu. Terima kasih.
+_Puskesmas/Klinik Anda_`;
+
+            const waUrl = `https://wa.me/${pasien.nomorHp}?text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
         }
 
-        window.promptDeletePasien = function(pasienId) {
-            closeModal('delete-kunjungan-modal');
-            document.getElementById('confirm-delete-pasien-btn').onclick = () => deletePasien(pasienId);
-            openModal('delete-pasien-modal');
-        }
+        /**
+         * Mencetak elemen tabel ke dalam file CSV yang lebih rapi.
+         * @param {string} tableId - ID dari elemen tabel yang akan dicetak.
+         * @param {string} filename - Nama file CSV yang akan diunduh.
+         */
+        function exportTableToCSV(tableId, filename) {
+            const table = document.getElementById(tableId);
+            if (!table) {
+                showStatusMessage('Tabel tidak ditemukan.', 'error');
+                return;
+            }
 
-        function deletePasien(pasienId) {
-            showLoading();
-            setTimeout(() => {
-                const nama = DB_PASIEN.find(p => p.id === pasienId)?.nama || 'Pasien';
-                DB_KUNJUNGAN = DB_KUNJUNGAN.filter(k => k.pasienId !== pasienId);
-                DB_PASIEN = DB_PASIEN.filter(p => p.id !== pasienId);
+            let csv = [];
+            const today = new Date().toLocaleDateString('id-ID');
+            
+            // Tambahkan header informasi
+            csv.push(`Data Prolanis - Tanggal: ${today}`);
+            csv.push(''); // Baris kosong untuk pemisah
 
-                saveData();
-                closeModal('delete-pasien-modal');
-                showStatus(`Data ${nama} dan semua kunjungannya berhasil dihapus.`, 'success');
-                updateDashboard();
-                renderDaftarPasien();
-                showLoading(false);
-            }, 500);
-        }
-
-        window.promptDeleteKunjungan = function(kunjunganId) {
-            closeModal('delete-pasien-modal');
-            document.getElementById('confirm-delete-kunjungan-btn').onclick = () => deleteKunjungan(kunjunganId);
-            openModal('delete-kunjungan-modal');
-        }
-
-        function deleteKunjungan(kunjunganId) {
-            showLoading();
-            setTimeout(() => {
-                const kunjunganIndex = DB_KUNJUNGAN.findIndex(k => k.id === kunjunganId);
-                if (kunjunganIndex !== -1) {
-                    const namaPasien = DB_PASIEN.find(p => p.id === DB_KUNJUNGAN[kunjunganIndex].pasienId)?.nama || 'Pasien';
-                    DB_KUNJUNGAN.splice(kunjunganIndex, 1);
-                    saveData();
-                    closeModal('delete-kunjungan-modal');
-                    showStatus(`Data kunjungan untuk ${namaPasien} berhasil dihapus.`, 'success');
-                } else {
-                    showStatus('Data kunjungan tidak ditemukan.', 'error');
+            // Ambil header tabel, kecuali kolom 'Aksi'
+            const headers = [];
+            const headerCells = table.querySelectorAll('thead th');
+            headerCells.forEach(cell => {
+                if (!cell.innerText.includes('Aksi')) {
+                    headers.push(cell.innerText.trim());
                 }
-                updateDashboard();
-                renderKunjunganTable();
-                showLoading(false);
-            }, 500);
-        }
-        
-        window.sendWhatsApp = function(phoneNumber, patientName, kunjunganId) {
-            const kunjungan = DB_KUNJUNGAN.find(k => k.id === kunjunganId);
-            if (!phoneNumber || !kunjungan) return showStatus('Nomor HP atau data kunjungan pasien tidak ditemukan.', 'error');
-            
-            const message = `Yth. Bapak/Ibu ${patientName},
-Ini adalah pengingat jadwal kontrol Prolanis/PRB Anda.
-Detail Kunjungan Terakhir (${new Date(kunjungan.tglKunjungan).toLocaleDateString('id-ID')}):
-- TD: ${kunjungan.tdSistole}/${kunjungan.tdDiastole} mmHg
-- Gula Darah: ${kunjungan.gulaDarah} mg/dL
-- Obat Berikutnya: ${kunjungan.tglObatBerikutnya}
-
-Silakan konfirmasi kehadiran Anda. Terima kasih.
-(Pesan otomatis dari Klinik)`;
-            
-            const cleanPhoneNumber = phoneNumber.replace(/[^0-9]/g, '');
-            const encodedMessage = encodeURIComponent(message);
-            const waLink = `https://wa.me/${cleanPhoneNumber}?text=${encodedMessage}`;
-            
-            window.open(waLink, '_blank');
-        }
-
-        document.getElementById('search-button-rekapan').addEventListener('click', () => {
-            const query = document.getElementById('search-input-rekapan').value.toLowerCase();
-            document.getElementById('rekapan-title').textContent = `Rekap Kunjungan (Filter: ${query || 'Semua'})`;
-            renderKunjunganTable(k => {
-                const patient = DB_PASIEN.find(p => p.id === k.pasienId);
-                return patient && (patient.nama.toLowerCase().includes(query) || patient.nik.toLowerCase().includes(query));
             });
-        });
+            csv.push(headers.join(';'));
 
-        document.getElementById('search-button-daftar-all').addEventListener('click', () => {
-            const query = document.getElementById('search-input-daftar-all').value.toLowerCase();
-            renderDaftarPasien(p => p.nama.toLowerCase().includes(query) || p.nik.toLowerCase().includes(query));
-        });
-
-        window.exportTableToCSV = function(tableId, filename) {
-            var table = document.getElementById(tableId) || document.querySelector('.data-table'); 
-            var csv = [];
-            var rows = table.querySelectorAll("thead tr, tbody tr");
-            
-            for (var i = 0; i < rows.length; i++) {
-                var row = [], cells = rows[i].querySelectorAll("th, td");
-                for (var j = 0; j < cells.length; j++) {
-                    var cellText = cells[j].innerText.trim();
-                    // Hapus kolom Aksi (kolom terakhir)
-                    if (i > 0 && j === cells.length - 1) continue; 
-                    if (i === 0 && cellText.toLowerCase() === 'aksi') continue;
+            // Ambil data tabel
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                let rowData = [];
+                
+                // Skip kolom aksi
+                for (let i = 0; i < cells.length; i++) {
+                    // Jika cell berisi tombol, lewati
+                    if (cells[i].querySelector('.btn-aksi')) continue;
                     
-                    var value = cellText.replace(/,/g, ";");    
-                    row.push('"' + value + '"');
+                    let cellText = cells[i].innerText.trim();
+                    
+                    // Format tanggal agar konsisten
+                    if (cellText.match(/\d{2}-\d{2}-\d{4}/)) {
+                        cellText = formatDateToID(convertDateToYYYYMMDD(cellText));
+                    }
+                    
+                    // Hapus karakter khusus yang bisa menyebabkan masalah di CSV
+                    cellText = cellText.replace(/[\r\n]/g, ' ').replace(/"/g, '""');
+                    
+                    // Tambahkan tanda kutip jika ada koma atau titik koma
+                    if (cellText.includes(';') || cellText.includes(',')) {
+                        cellText = `"${cellText}"`;
+                    }
+                    
+                    rowData.push(cellText);
                 }
-                if (row.length > 0) { // Pastikan baris tidak kosong setelah kolom Aksi dihapus
-                    csv.push(row.join(","));          
+                
+                if (rowData.length > 0) {
+                    csv.push(rowData.join(';'));
                 }
-            }
-            
-            var csvFile = new Blob([csv.join("\n")], {type: 'text/csv'});
-            var downloadLink = document.createElement("a");
-            downloadLink.download = filename;
-            downloadLink.href = URL.createObjectURL(csvFile);
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
+            });
 
-            showStatus('File CSV berhasil diunduh.', 'success');
+            // Buat dan unduh file CSV dengan BOM untuk encoding UTF-8 yang benar
+            const csvContent = csv.join('\n');
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', filename);
+            link.click();
+
+            showStatusMessage(`Tabel '${filename}' berhasil diekspor!`, 'success');
         }
 
-        // --- I. Inisialisasi Aplikasi ---
+        function exportAllPatientsToCSV() {
+            showLoading('Membuat file CSV...');
+            let csv = [];
+            
+            const today = new Date().toLocaleDateString('id-ID');
+            csv.push(`Daftar Seluruh Pasien Prolanis - Tanggal: ${today}`);
+            csv.push(''); // Baris kosong untuk pemisah
+
+            const header = [
+                "No.", "Nama Pasien", "NIK", "No. HP", "Status Prolanis", 
+                "Jenis PRB", "Status DM Terakhir", "Status HT Terakhir"
+            ];
+            csv.push(header.join(';'));
+
+            const lastKunjunganMap = new Map();
+            ALL_DATA.kunjungan.forEach(kunjungan => {
+                if (!lastKunjunganMap.has(kunjungan.pasienId)) {
+                    lastKunjunganMap.set(kunjungan.pasienId, kunjungan);
+                }
+            });
+
+            ALL_DATA.pasien.forEach((pasien, index) => {
+                const lastKunjungan = lastKunjunganMap.get(pasien.id);
+                let dmStatus = 'N/A';
+                let htStatus = 'N/A';
+                
+                if (lastKunjungan) {
+                    dmStatus = getDmStatus(lastKunjungan.gulaDarah);
+                    htStatus = getHtStatus(lastKunjungan.tdSistole, lastKunjungan.tdDiastole);
+                }
+
+                const rowData = [
+                    index + 1,
+                    pasien.namaPasien,
+                    pasien.nik,
+                    pasien.nomorHp,
+                    pasien.statusProlanis,
+                    pasien.jenisPrb || '-',
+                    dmStatus,
+                    htStatus
+                ];
+
+                const csvRow = rowData.map(item => {
+                    let text = String(item).replace(/"/g, '""').trim();
+                    if (text.includes(';')) {
+                        text = `"${text}"`;
+                    }
+                    return text;
+                }).join(';');
+                
+                csv.push(csvRow);
+            });
+
+            const csvContent = csv.join('\n');
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', 'DaftarPasienProlanis.csv');
+            link.click();
+            
+            hideLoading();
+            showStatusMessage('Daftar pasien berhasil diekspor!', 'success');
+        }
+
+        /**
+         * Mencetak elemen tabel ke dalam file PDF menggunakan html2canvas dan jsPDF.
+         * @param {string} tableId - ID dari elemen tabel yang akan dicetak.
+         * @param {string} filename - Nama file PDF yang akan diunduh.
+         */
+        function exportTableToPDF(tableId, filename) {
+            showLoading('Mempersiapkan PDF...');
+            const element = document.getElementById(tableId);
+            if (!element) {
+                hideLoading();
+                showStatusMessage('Tabel tidak ditemukan untuk dicetak.', 'error');
+                return;
+            }
+
+            // Pastikan modal terlihat saat mencetak, jika tabel ada di dalam modal
+            const modal = element.closest('.modal');
+            if (modal) {
+                modal.style.visibility = 'hidden'; // Sembunyikan modal sementara
+            }
+
+            html2canvas(element, {
+                scale: 2, // Skala lebih tinggi untuk kualitas lebih baik
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff' // Pastikan background putih
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jspdf.jsPDF({
+                    orientation: 'landscape', // Lebar cocok untuk tabel
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                
+                const ratio = Math.min(pdfWidth / imgWidth, (pdfHeight - 20) / imgHeight); // Beri margin 20mm
+                const imgX = (pdfWidth - imgWidth * ratio) / 2;
+                const imgY = 10;
+
+                pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+                pdf.save(filename);
+                
+                // Kembalikan visibility modal
+                if (modal) {
+                    modal.style.visibility = 'visible';
+                }
+
+                hideLoading();
+                showStatusMessage(`Tabel '${filename}' berhasil dicetak ke PDF!`, 'success');
+            }).catch(error => {
+                console.error('Error generating PDF:', error);
+                if (modal) {
+                    modal.style.visibility = 'visible';
+                }
+                hideLoading();
+                showStatusMessage('Gagal membuat PDF. Silakan coba lagi.', 'error');
+            });
+        }
+
+        // =================================================================
+        // THEME TOGGLE LOGIC
+        // =================================================================
+
+        function updateThemeToggleStyle(isDarkMode) {
+            const knob = document.getElementById('theme-knob');
+            const darkIcon = document.getElementById('dark-icon-label');
+            const lightIcon = document.getElementById('light-icon-label');
+            const slider = document.querySelector('.slider');
+
+            if (isDarkMode) {
+                knob.style.transform = 'translateX(20px)';
+                slider.style.backgroundColor = 'var(--primary-color)';
+                darkIcon.style.opacity = '1';
+                lightIcon.style.opacity = '0.5';
+            } else {
+                knob.style.transform = 'translateX(0px)';
+                slider.style.backgroundColor = 'var(--border-color)';
+                darkIcon.style.opacity = '0.5';
+                lightIcon.style.opacity = '1';
+            }
+        }
+
+        function toggleTheme(isDarkMode) {
+            if (isDarkMode) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            }
+            updateThemeToggleStyle(isDarkMode);
+        }
+
+        function initializeTheme() {
+            const themeToggle = document.getElementById('theme-toggle');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const storedTheme = localStorage.getItem('theme');
+            let isDarkMode = false;
+
+            if (storedTheme === 'dark') {
+                isDarkMode = true;
+            } else if (storedTheme === 'light') {
+                isDarkMode = false;
+            } else if (prefersDark) {
+                isDarkMode = true;
+            }
+
+            if (isDarkMode) {
+                document.body.classList.add('dark-mode');
+                themeToggle.checked = true;
+            }
+
+            updateThemeToggleStyle(isDarkMode);
+
+            themeToggle.addEventListener('change', () => {
+                toggleTheme(themeToggle.checked);
+            });
+        }
+
+        // =================================================================
+        // EVENT LISTENERS & INITIALIZATION
+        // =================================================================
+
         function initializeApp() {
-            showLoading();
+            showLoading('Memuat Aplikasi...');
+
+            // Navbar & Section Activation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const sectionId = link.getAttribute('data-section');
+                    activateSection(sectionId);
+                });
+            });
+
+            // Form Submission
+            document.getElementById('pasien-input-form').addEventListener('submit', handleFormSubmit);
+            document.getElementById('cancel-button').addEventListener('click', resetForm);
             
-            setTimeout(() => {
-                // Data dummy (Jika kosong)
-                if (DB_PASIEN.length === 0) {
-                    const id1 = generateUniqueId('PASIEN');
-                    const id2 = generateUniqueId('PASIEN');
-                    
-                    DB_PASIEN = [
-                        { id: id1, nama: 'Ahmad Budi Santoso', nik: '3201011234567890', nomorHp: '6281234567890', statusProlanis: 'Ya', jenisPrb: 'DM' },
-                        { id: id2, nama: 'Siti Aminah', nik: '3171098765432109', nomorHp: '6285700001111', statusProlanis: 'Ya', jenisPrb: 'HT' },
-                    ];
-                    DB_KUNJUNGAN = [
-                        { id: generateUniqueId('KUNJUNGAN'), pasienId: id1, tglKunjungan: '2024-10-01', tdSistole: 145, tdDiastole: 92, gulaDarah: '190', kesadaran: 'Compos Mentis', tglObatBerikutnya: '15-11-2024', tglInput: new Date('2024-10-01T10:00:00Z').toISOString() },
-                        { id: generateUniqueId('KUNJUNGAN'), pasienId: id2, tglKunjungan: '2024-10-05', tdSistole: 130, tdDiastole: 80, gulaDarah: '-', kesadaran: 'Compos Mentis', tglObatBerikutnya: '05-11-2024', tglInput: new Date('2024-10-05T11:30:00Z').toISOString() },
-                        { id: generateUniqueId('KUNJUNGAN'), pasienId: id1, tglKunjungan: '2024-10-20', tdSistole: 135, tdDiastole: 85, gulaDarah: '165', kesadaran: 'Compos Mentis', tglObatBerikutnya: '20-11-2024', tglInput: new Date('2024-10-20T14:45:00Z').toISOString() },
-                    ];
-                    saveData();
-                    showStatus('Data awal (dummy) dimuat. (Hanya muncul jika Local Storage kosong)', 'info');
+            document.getElementById('tglKunjungan').value = new Date().toISOString().substring(0, 10);
+            
+            document.getElementById('delete-patient-button').addEventListener('click', () => {
+                const pasienId = document.getElementById('pasienId').value;
+                const namaPasien = document.getElementById('namaPasien').value.trim();
+                if (pasienId && namaPasien) {
+                    confirmDeletePasien(pasienId, namaPasien);
+                } else {
+                    showStatusMessage('Tidak ada pasien yang dipilih untuk dihapus.', 'error');
                 }
-                
-                updateDashboard();
-                showLoading(false);
-                switchSection('input-form-area'); // Tetap di Input Baru setelah loading
-                resetForm(); // Pastikan form bersih dan siap
-            }, 1500); 
+            });
+
+            // Form change tracking
+            document.getElementById('pasien-input-form').addEventListener('input', () => {
+                formChanged = true;
+            });
+
+            // Beforeunload warning
+            window.addEventListener('beforeunload', (e) => {
+                if (formChanged) {
+                    e.preventDefault();
+                    e.returnValue = 'Data form belum tersimpan. Yakin ingin keluar?';
+                }
+            });
+
+            // Autocomplete with debounce
+            document.getElementById('namaPasien').addEventListener('input', (e) => {
+                const query = e.target.value;
+                document.getElementById('pasienId').value = '';
+                currentEditingPasienId = null;
+                currentEditingKunjunganId = null;
+                debouncedSearchNama(query);
+            });
+            
+            document.getElementById('nik').addEventListener('input', (e) => {
+                const query = e.target.value;
+                document.getElementById('pasienId').value = '';
+                currentEditingPasienId = null;
+                currentEditingKunjunganId = null;
+                debouncedSearchNik(query);
+            });
+
+            // Hide search results when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.form-group')) {
+                    document.getElementById('search-results-nama').style.display = 'none';
+                    document.getElementById('search-results-nik').style.display = 'none';
+                }
+            });
+
+            // Search buttons
+            document.getElementById('search-button-rekapan').addEventListener('click', () => {
+                const term = document.getElementById('search-input-rekapan').value;
+                renderRekapanKunjungan(1, term);
+            });
+            document.getElementById('search-input-rekapan').addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    const term = document.getElementById('search-input-rekapan').value;
+                    renderRekapanKunjungan(1, term);
+                }
+            });
+
+            document.getElementById('search-button-daftar-all').addEventListener('click', () => {
+                const term = document.getElementById('search-input-daftar-all').value;
+                renderDaftarPasien(1, term);
+            });
+            document.getElementById('search-input-daftar-all').addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    const term = document.getElementById('search-input-daftar-all').value;
+                    renderDaftarPasien(1, term);
+                }
+            });
+
+            // Duplicate Modal
+            document.getElementById('btn-lanjut-lama').addEventListener('click', () => {
+                if (duplicatePasienData && duplicateKunjunganData) {
+                    const pasienDataFromForm = {
+                        namaPasien: document.getElementById('namaPasien').value.trim(),
+                        nik: document.getElementById('nik').value.trim(),
+                        nomorHp: document.getElementById('nomorHp').value.trim(),
+                        statusProlanis: document.getElementById('statusProlanis').value,
+                        jenisPrb: document.getElementById('jenisPrb').value.trim(),
+                    };
+                    saveNewPatientAndVisit(pasienDataFromForm, duplicateKunjunganData, duplicatePasienData.id);
+                    hideDuplicateModal();
+                }
+            });
+            document.getElementById('btn-buat-baru').addEventListener('click', () => {
+                if (duplicatePasienData && duplicateKunjunganData) {
+                    const pasienDataFromForm = {
+                        namaPasien: document.getElementById('namaPasien').value.trim(),
+                        nik: document.getElementById('nik').value.trim(),
+                        nomorHp: document.getElementById('nomorHp').value.trim(),
+                        statusProlanis: document.getElementById('statusProlanis').value,
+                        jenisPrb: document.getElementById('jenisPrb').value.trim(),
+                    };
+                    saveNewPatientAndVisit(pasienDataFromForm, duplicateKunjunganData, null);
+                    hideDuplicateModal();
+                }
+            });
+            
+            // Riwayat Modal
+            document.getElementById('close-riwayat-modal').addEventListener('click', hideRiwayatModal);
+
+            // Theme
+            initializeTheme();
+
+            // Load all data - non-blocking
+            setTimeout(() => {
+                loadAllDataViews();
+                hideLoading();
+            }, 100);
         }
-        
-        initializeApp();
+
+        // Start app
+        document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
 </body>
 </html>
